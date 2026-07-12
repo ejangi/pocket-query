@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -37,10 +38,20 @@ class AuthService extends ChangeNotifier {
 
   AuthService() {
     // Initialize the plugin first
-    _googleSignIn.initialize(
-      // TODO: Replace with your Web Client ID from the Google Cloud Console
-      serverClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-    ).then((_) {
+    final String webClientId = '226169391261-4qqt2be6t0iu2b9q6kblvdf79nkniaq5.apps.googleusercontent.com';
+    
+    final Future<void> initFuture;
+    if (kIsWeb) {
+      initFuture = _googleSignIn.initialize(
+        clientId: webClientId,
+      );
+    } else {
+      initFuture = _googleSignIn.initialize(
+        serverClientId: webClientId,
+      );
+    }
+
+    initFuture.then((_) {
       // Listen to authentication events
       _authSubscription = _googleSignIn.authenticationEvents.listen(_handleAuthenticationEvent);
       // Attempt to silently sign in
