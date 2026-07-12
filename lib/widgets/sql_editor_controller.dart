@@ -199,4 +199,40 @@ class SqlEditorController extends TextEditingController {
 
     return TextSpan(children: spans, style: defaultStyle);
   }
+
+  /// Robust SQL parser helper to extract dataset ID and table ID from a query string.
+  /// Handles backticks, project prefixes, comments, spacing, and multiple lines.
+  static Map<String, String>? parseTableReference(String query) {
+    // 1. Strip comments (both line -- / # and multi-line /* ... */)
+    final cleanQuery = query.replaceAll(RegExp(r'\/\*[\s\S]*?\*\/|--.*|#.*'), ' ');
+
+    // 2. Match FROM or JOIN clauses followed by optional spaces and backticks or letters
+    final pathRegex = RegExp(
+      r'\b(?:FROM|JOIN)\s+(?:`([^`]+)`|([a-zA-Z0-9_\-\.]+))',
+      caseSensitive: false,
+    );
+
+    for (final match in pathRegex.allMatches(cleanQuery)) {
+      final path = match.group(1) ?? match.group(2);
+      if (path == null) continue;
+      
+      final parts = path.split('.');
+      if (parts.length >= 2) {
+        final tableId = parts.last.trim();
+        final datasetId = parts[parts.length - 2].trim();
+        
+        return {
+          'datasetId': datasetId.replaceAll('`', ''),
+          'tableId': tableId.replaceAll('`', ''),
+        };
+      } else if (parts.isNotEmpty && parts.first.trim().isNotEmpty) {
+        final tableId = parts.first.trim();
+        return {
+          'datasetId': 'default_dataset',
+          'tableId': tableId.replaceAll('`', ''),
+        };
+      }
+    }
+    return null;
+  }
 }

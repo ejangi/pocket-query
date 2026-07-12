@@ -133,4 +133,47 @@ void main() {
       ),
     );
   });
+
+  test('SqlEditorController.parseTableReference extracts table reference robustly', () {
+    // 1. Plain reference
+    final ref1 = SqlEditorController.parseTableReference("SELECT * FROM my_dataset.my_table");
+    expect(ref1, isNotNull);
+    expect(ref1!['datasetId'], 'my_dataset');
+    expect(ref1['tableId'], 'my_table');
+
+    // 2. Backticks with project
+    final ref2 = SqlEditorController.parseTableReference("SELECT * FROM `my-project.my_dataset.transactions` LIMIT 10");
+    expect(ref2, isNotNull);
+    expect(ref2!['datasetId'], 'my_dataset');
+    expect(ref2['tableId'], 'transactions');
+
+    // 3. Comments preceding actual FROM
+    final ref3 = SqlEditorController.parseTableReference('''
+      -- SELECT * FROM old_dataset.old_table
+      SELECT * FROM new_dataset.new_table
+    ''');
+    expect(ref3, isNotNull);
+    expect(ref3!['datasetId'], 'new_dataset');
+    expect(ref3['tableId'], 'new_table');
+
+    // 4. Subquery parenthesized
+    final ref4 = SqlEditorController.parseTableReference('''
+      SELECT * FROM (
+        SELECT * FROM `ecommerce_dataset.customers`
+      )
+    ''');
+    expect(ref4, isNotNull);
+    expect(ref4!['datasetId'], 'ecommerce_dataset');
+    expect(ref4['tableId'], 'customers');
+
+    // 5. Invalid query
+    final ref5 = SqlEditorController.parseTableReference("SELECT 1+1");
+    expect(ref5, isNull);
+
+    // 6. Unqualified single table name
+    final ref6 = SqlEditorController.parseTableReference("SELECT Name, Employees FROM Accounts WHERE Size = 'Large' LIMIT 1000");
+    expect(ref6, isNotNull);
+    expect(ref6!['datasetId'], 'default_dataset');
+    expect(ref6['tableId'], 'Accounts');
+  });
 }

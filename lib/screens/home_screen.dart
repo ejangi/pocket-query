@@ -76,16 +76,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _runQuickCount() {
     final query = _queryController.text;
+    final parsedRef = SqlEditorController.parseTableReference(query);
     
-    // Match standard FROM dataset.table or FROM `project.dataset.table` regex patterns
-    final match = RegExp(
-      r'FROM\s+`?(?:[a-zA-Z0-9_-]+\.)?([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_-]+)`?',
-      caseSensitive: false,
-    ).firstMatch(query);
-    
-    if (match != null) {
-      final datasetId = match.group(1)!;
-      final tableId = match.group(2)!;
+    if (parsedRef != null) {
+      final datasetId = parsedRef['datasetId']!;
+      final tableId = parsedRef['tableId']!;
       context.read<BigQueryService>().runQuickCount(datasetId, tableId);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
