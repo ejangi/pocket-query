@@ -1,32 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/services/auth_service.dart';
+import 'package:pocket_query/services/bigquery_service.dart';
 
 class SideMenu extends StatefulWidget {
-  const SideMenu({super.key});
+  final Function(String) onQuerySelected;
+
+  const SideMenu({super.key, required this.onQuerySelected});
 
   @override
   State<SideMenu> createState() => _SideMenuState();
 }
 
 class _SideMenuState extends State<SideMenu> {
-  String _selectedProject = "My Data Project";
-
   // Mock Queries matching Figma specs
   final List<String> _projectQueries = [
     'online_transactions_this_month',
     'accounts_with_no_primary_contact',
   ];
 
-  final List<String> _personalQueries = [
-    'large_accounts_queryname',
-    'transactions_per_channel',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
+    final bigQueryService = context.watch<BigQueryService>();
+    
     final user = authService.currentUser;
+    final projects = bigQueryService.projects;
+    final selectedProject = bigQueryService.selectedProjectId;
     
     final displayName = user?.displayName ?? "James Angus";
     final displayEmail = user?.email ?? "mygmailadddress@gmail.com";
@@ -76,9 +76,10 @@ class _SideMenuState extends State<SideMenu> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
-                      value: _selectedProject,
+                      value: selectedProject != null && projects.contains(selectedProject) ? selectedProject : null,
                       isExpanded: true,
-                      items: ["My Data Project", "Prod Billing Project", "Sandbox Lab"]
+                      hint: const Text("Select project..."),
+                      items: projects
                           .map((val) => DropdownMenuItem(
                                 value: val,
                                 child: Text(val),
@@ -86,9 +87,7 @@ class _SideMenuState extends State<SideMenu> {
                           .toList(),
                       onChanged: (val) {
                         if (val != null) {
-                          setState(() {
-                            _selectedProject = val;
-                          });
+                          bigQueryService.selectProject(val);
                         }
                       },
                     ),
@@ -107,7 +106,7 @@ class _SideMenuState extends State<SideMenu> {
                 ..._projectQueries.map((q) => _buildQueryItem(q, Icons.article_outlined)),
                 const Divider(),
                 _buildSectionHeader('PERSONAL QUERIES'),
-                ..._personalQueries.map((q) => _buildQueryItem(q, Icons.lock_outline)),
+                ...bigQueryService.personalQueries.map((q) => _buildQueryItem(q, Icons.lock_outline)),
               ],
             ),
           ),
@@ -145,15 +144,19 @@ class _SideMenuState extends State<SideMenu> {
     );
   }
 
-  Widget _buildQueryItem(String name, IconData icon) {
+  Widget _buildQueryItem(String queryText, IconData icon) {
+    final displayName = queryText.split('\n').first.trim();
     return ListTile(
       leading: Icon(icon, size: 20),
       title: Text(
-        name,
+        displayName,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 14),
       ),
-      onTap: () {},
+      onTap: () {
+        widget.onQuerySelected(queryText);
+        Navigator.pop(context); // Close the side menu drawer
+      },
     );
   }
 }

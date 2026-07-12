@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -8,6 +10,7 @@ import 'package:pocket_query/screens/splash_screen.dart';
 import 'package:pocket_query/screens/home_screen.dart';
 
 // Reuse mock classes locally to isolate integration testing from OS OAuth popups
+import 'package:pocket_query/services/bigquery_service.dart';
 import '../test/auth_flow_test.dart';
 
 void main() {
@@ -17,11 +20,15 @@ void main() {
   group('E2E App Integration Flow', () {
     testWidgets('App launches to Splash Screen, performs mock Google Sign-in, and loads Home Workspace', (WidgetTester tester) async {
       final mockAuth = MockAuthService();
+      final mockBQ = BigQueryService(mockAuth);
 
-      // Launch the application using the mocked auth provider
+      // Launch the application using the mocked auth and BQ providers
       await tester.pumpWidget(
-        ChangeNotifierProvider<AuthService>.value(
-          value: mockAuth,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthService>.value(value: mockAuth),
+            ChangeNotifierProvider<BigQueryService>.value(value: mockBQ),
+          ],
           child: const PocketQueryApp(),
         ),
       );
@@ -29,11 +36,12 @@ void main() {
       // 1. Verify app starts at the Splash Screen and displays login action
       await tester.pumpAndSettle();
       expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.text('Sign in with Google'), findsOneWidget);
+      final loginButtonText = (!kIsWeb && Platform.isLinux) ? 'Get Started' : 'Sign in with Google';
+      expect(find.text(loginButtonText), findsOneWidget);
       expect(find.byType(HomeScreen), findsNothing);
 
-      // 2. Perform tap gesture on the Google sign-in button
-      await tester.tap(find.text('Sign in with Google'));
+      // 2. Perform tap gesture on the login button
+      await tester.tap(find.text(loginButtonText));
 
       // Wait for all async actions and routing animations to settle
       await tester.pumpAndSettle();

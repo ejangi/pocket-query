@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -37,6 +39,12 @@ class AuthService extends ChangeNotifier {
   ];
 
   AuthService() {
+    // If running on Linux desktop, skip GoogleSignIn initialization to avoid UnimplementedError
+    if (!kIsWeb && Platform.isLinux) {
+      debugPrint("Running on Linux desktop target - Google Sign-in will run in Mock Mode.");
+      return;
+    }
+
     // Initialize the plugin first
     final String webClientId = '226169391261-4qqt2be6t0iu2b9q6kblvdf79nkniaq5.apps.googleusercontent.com';
     
@@ -92,6 +100,15 @@ class AuthService extends ChangeNotifier {
   Future<bool> signIn() async {
     _isLoading = true;
     notifyListeners();
+
+    if (!kIsWeb && Platform.isLinux) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      _currentUser = MockGoogleSignInAccount();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    }
+
     try {
       final account = await _googleSignIn.authenticate();
       if (account != null) {
@@ -140,4 +157,72 @@ class AuthService extends ChangeNotifier {
     _authSubscription?.cancel();
     super.dispose();
   }
+}
+
+// Mock definitions to support Linux desktop testing natively
+class MockGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
+  @override
+  String get accessToken => 'mock_access_token';
+}
+
+class MockGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
+  @override
+  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
+    return MockGoogleSignInClientAuthorization();
+  }
+
+  @override
+  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
+    return MockGoogleSignInClientAuthorization();
+  }
+
+  @override
+  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
+    return {'Authorization': 'Bearer mock_access_token'};
+  }
+
+  @override
+  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async {
+    return null;
+  }
+
+  @override
+  Future<void> clearAuthorizationToken({required String accessToken}) async {}
+}
+
+class MockGoogleSignInAuthentication implements GoogleSignInAuthentication {
+  @override
+  String? get accessToken => 'mock_access_token';
+
+  @override
+  String? get idToken => 'mock_id_token';
+}
+
+class MockGoogleSignInAccount implements GoogleSignInAccount {
+  @override
+  String get displayName => 'Test User';
+
+  @override
+  String get email => 'test@example.com';
+
+  @override
+  String get id => '12345';
+
+  @override
+  String? get photoUrl => null;
+
+  @override
+  String? get serverAuthCode => null;
+
+  @override
+  GoogleSignInAuthentication get authentication => MockGoogleSignInAuthentication();
+
+  @override
+  Future<Map<String, String>> get authHeaders async => {};
+
+  @override
+  Future<void> clearAuthCache() async {}
+
+  @override
+  GoogleSignInAuthorizationClient get authorizationClient => MockGoogleSignInAuthorizationClient();
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/services/auth_service.dart';
+import 'package:pocket_query/services/bigquery_service.dart';
 import 'package:pocket_query/screens/splash_screen.dart';
 import 'package:pocket_query/screens/home_screen.dart';
 
@@ -8,7 +9,17 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()..attemptLightweightAuthentication()),
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProxyProvider<AuthService, BigQueryService>(
+          create: (context) => BigQueryService(context.read<AuthService>()),
+          update: (context, auth, previous) {
+            if (previous == null) {
+              return BigQueryService(auth);
+            }
+            previous.updateAuth(auth);
+            return previous;
+          },
+        ),
       ],
       child: const PocketQueryApp(),
     ),

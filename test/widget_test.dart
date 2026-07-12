@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:pocket_query/services/auth_service.dart';
 import 'package:pocket_query/screens/splash_screen.dart';
 
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 void main() {
   testWidgets('App renders splash screen elements initially', (WidgetTester tester) async {
     // Build our app and trigger a frame.
@@ -20,7 +23,8 @@ void main() {
     // Verify that the SVG assets (Logo and Title) are present.
     expect(find.byType(SvgPicture), findsNWidgets(2));
     
-    // Verify that the "Sign in with Google" text is shown on the button.
-    expect(find.text('Sign in with Google'), findsOneWidget);
+    // Verify that the login button is shown.
+    final loginButtonText = (!kIsWeb && Platform.isLinux) ? 'Get Started' : 'Sign in with Google';
+    expect(find.text(loginButtonText), findsOneWidget);
   });
 }
