@@ -1,0 +1,2 @@
+{"mcpServers":{"figma":{"command":"npx","args":["-y","@figma/mcp-server"],
+  "env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"DUMMY_TOKEN"}}}}
