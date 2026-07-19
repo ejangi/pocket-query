@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/screens/side_menu.dart';
 import 'package:pocket_query/screens/schema_browser.dart';
@@ -274,19 +275,15 @@ class _HomeScreenState extends State<HomeScreen> {
         .hasMatch(_queryController.text);
 
     return Container(
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      color: const Color(0xFF2F3237),
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
-          // Code Box
+          // Code Box (edge-to-edge dark pane with inset padding)
           Expanded(
             child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F0F0F) : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[isDark ? 800 : 300]!),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              color: const Color(0xFF2F3237),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Focus(
                 onKeyEvent: (node, event) {
                   if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -309,33 +306,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   controller: _queryController,
                   focusNode: _editorFocusNode,
                   maxLines: null,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
+                  style: GoogleFonts.anonymousPro(
+                    fontSize: 18,
+                    color: Colors.white,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                     hintText: 'Enter your SQL query here...',
+                    hintStyle: GoogleFonts.anonymousPro(
+                      fontSize: 18,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
           // Bottom Accessory / Action Bar (positioned at bottom / above soft keyboard)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF252526) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[isDark ? 800 : 300]!),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+              color: const Color(0xFF24272C),
+              border: Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -556,27 +552,53 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (bq.quickCountResult != null) {
-      return Center(
+      final countColor = isDark ? Colors.white : const Color(0xFF2F3237);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Quick Count Result (0 Bytes Scanned)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            const SizedBox(height: 8),
             Text(
-              bq.quickCountResult!,
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF536DFE),
+              'Results',
+              style: GoogleFonts.roboto(
+                fontSize: 38,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF536DFF),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            const SizedBox(height: 20),
+            Text(
+              bq.quickCountResult!,
+              style: GoogleFonts.anonymousPro(
+                fontSize: 56,
+                fontWeight: FontWeight.normal,
+                color: countColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
               'rows matching query',
-              style: TextStyle(color: Colors.grey),
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                color: const Color(0xFF7F8286),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Quick Count Result (0 Bytes Scanned)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
             ),
           ],
         ),

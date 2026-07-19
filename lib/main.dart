@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/services/auth_service.dart';
 import 'package:pocket_query/services/bigquery_service.dart';
@@ -35,21 +36,27 @@ class PocketQueryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const primaryAccent = Color(0xFF536DFF);
+    
     return MaterialApp(
       title: 'Pocket Query',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        textTheme: GoogleFonts.robotoTextTheme(ThemeData.light().textTheme),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF536DFE), // Indigo/Blue from Figma
+          seedColor: primaryAccent,
+          primary: primaryAccent,
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: Colors.white,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
+        textTheme: GoogleFonts.robotoTextTheme(ThemeData.dark().textTheme),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF536DFE),
+          seedColor: primaryAccent,
+          primary: primaryAccent,
           brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: const Color(0xFF121212),

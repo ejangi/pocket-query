@@ -81,52 +81,34 @@ class SqlEditorController extends TextEditingController {
     final functionsPattern = sortedFunctions.map(RegExp.escape).join('|');
     final typesPattern = sortedTypes.map(RegExp.escape).join('|');
 
-    // Create groups:
-    // 1: Multi-line / single-line comments
-    // 2: String literals (single & double quotes)
-    // 3: Backticks (identifiers)
-    // 4: Keywords
-    // 5: Functions
-    // 6: Data Types
-    // 7: Numbers
     _masterRegex = RegExp(
       r'('
       r'(?:\/\*[\s\S]*?\*\/|--.*|#.*)' // Group 1: Comments
-      r'|(?:\x27[^\x27\\]*(?:\\.[^\x27\\]*)*\x27|\x22[^\x22\\]*(?:\\.[^\x22\\]*)*\x22)' // Group 2: Strings
+      r'|(?:\x27[^\x27\\]*(?:\\.[^\x27\\]*)*\x27|\x22[^\x22\\]*(?:\\.[^\x22\\]*)*\x22|‘[^’\\]*(?:\\.[^’\\]*)*’|“[^”\\]*(?:\\.[^”\\]*)*”)' // Group 2: Strings
       r'|(`[^`\\]*(?:\\.[`\\]*)*`)' // Group 3: Backticks
       r'|\b(?:' + keywordsPattern + r')\b' // Group 4: Keywords
       r'|\b(?:' + functionsPattern + r')\b' // Group 5: Functions
       r'|\b(?:' + typesPattern + r')\b' // Group 6: Types
       r'|\b\d+(?:\.\d+)?\b' // Group 7: Numbers
+      r'|\b[a-zA-Z_][a-zA-Z0-9_]*\b' // Group 8: Identifiers
       r')',
       caseSensitive: false,
       multiLine: true,
     );
   }
 
-  // Define styling theme maps for light and dark modes
+  // Exact Figma syntax color theme for dark charcoal editor pane (#2F3237)
   Map<String, TextStyle> _getThemeStyles(bool isDark) {
-    if (isDark) {
-      return {
-        'comment': TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic),
-        'string': const TextStyle(color: Color(0xFF81C784)), // soft green
-        'backtick': const TextStyle(color: Color(0xFF4DB6AC), fontWeight: FontWeight.w600), // teal
-        'keyword': const TextStyle(color: Color(0xFF64B5F6), fontWeight: FontWeight.bold), // light blue
-        'function': const TextStyle(color: Color(0xFFBA68C8), fontWeight: FontWeight.w600), // purple
-        'type': const TextStyle(color: Color(0xFFFFB74D)), // orange
-        'number': const TextStyle(color: Color(0xFFE0F2F1)), // soft white/cyan
-      };
-    } else {
-      return {
-        'comment': TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
-        'string': const TextStyle(color: Color(0xFF2E7D32)), // forest green
-        'backtick': const TextStyle(color: Color(0xFF00796B), fontWeight: FontWeight.w600), // dark teal
-        'keyword': const TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold), // indigo
-        'function': const TextStyle(color: Color(0xFF7B1FA2), fontWeight: FontWeight.w600), // deep purple
-        'type': const TextStyle(color: Color(0xFFE65100)), // deep orange
-        'number': const TextStyle(color: Color(0xFF006064)), // dark cyan
-      };
-    }
+    return {
+      'comment': const TextStyle(color: Color(0xFF7F8286), fontStyle: FontStyle.italic),
+      'string': const TextStyle(color: Color(0xFFF65471)), // Figma Coral Pink #F65471
+      'backtick': const TextStyle(color: Color(0xFF5FCDDD), fontWeight: FontWeight.w600), // Figma Cyan #5FCDDD
+      'keyword': const TextStyle(color: Color(0xFFF0FB6F), fontWeight: FontWeight.bold), // Figma Neon Yellow #F0FB6F
+      'function': const TextStyle(color: Color(0xFF44D9D0), fontWeight: FontWeight.w600), // Figma Teal #44D9D0
+      'type': const TextStyle(color: Color(0xFF999999)), // Figma Muted #999999
+      'number': const TextStyle(color: Color(0xFF44D9D0)), // Figma Teal #44D9D0
+      'identifier': const TextStyle(color: Color(0xFF5FCDDD)), // Figma Cyan #5FCDDD
+    };
   }
 
   /// Exposed getter for autocompletion dictionary lookup
@@ -164,7 +146,7 @@ class SqlEditorController extends TextEditingController {
       // Classify the match based on contents or characters
       if (matchedText.startsWith('--') || matchedText.startsWith('#') || matchedText.startsWith('/*')) {
         matchStyle = defaultStyle.merge(styles['comment']);
-      } else if (matchedText.startsWith('\'') || matchedText.startsWith('"')) {
+      } else if (matchedText.startsWith('\'') || matchedText.startsWith('"') || matchedText.startsWith('‘') || matchedText.startsWith('“')) {
         matchStyle = defaultStyle.merge(styles['string']);
       } else if (matchedText.startsWith('`')) {
         matchStyle = defaultStyle.merge(styles['backtick']);
@@ -178,6 +160,8 @@ class SqlEditorController extends TextEditingController {
           matchStyle = defaultStyle.merge(styles['type']);
         } else if (RegExp(r'^\d').hasMatch(matchedText)) {
           matchStyle = defaultStyle.merge(styles['number']);
+        } else if (RegExp(r'^[a-zA-Z_]').hasMatch(matchedText)) {
+          matchStyle = defaultStyle.merge(styles['identifier']);
         }
       }
 
