@@ -30,6 +30,7 @@ All interfaces must align closely with the Figma design file (`AVuLQ1mdnBXg6I36h
 ---
 
 ## 4. Development Rules
+* **Target & Execution Environment**: Always default to running and testing the app on the **Android Studio Emulator** (or connected Android device). Do NOT run in Linux desktop mode by default, as Google Login is unsupported on Linux desktop mode.
 * **Code Styling**: Follow the official Flutter/Dart formatting guidelines (`flutter format`).
 * **Clean Architecture**: Keep UI widgets separate from state management logic and network services.
 * **Security**: Google access tokens should be stored securely on-device (e.g., using `flutter_secure_storage`) and must never be exposed or logged.

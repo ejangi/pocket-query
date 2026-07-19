@@ -16,37 +16,33 @@ Pocket Query is a cross-platform mobile application built with Flutter that allo
 
 ## Local Development & Testing
 
-Since standard Google OAuth plug-ins are targeted for Android, iOS, macOS, and Web, local Linux desktop testing runs in an adaptive **Mock Mode**.
+### 1. Run on Android Studio Emulator (Default & Recommended)
+To test full authentication with Google Sign-in, run the app on an Android emulator or connected physical Android device.
 
-### 1. Run as Native Linux Desktop App (Recommended)
-This is the fastest compile option. It launches a native Linux window directly on your desktop:
-
-```bash
-flutter run -d linux
-```
-
-*Note: On Linux, the login flow is bypassed with a primary **"Get Started"** button that logs you in with a local `'Test User'` profile instantly. Local schema caching utilizes system keyring bindings.*
-
-### 2. Run as Web Application
-If you have authorized `http://localhost:5000` inside your Google Cloud Console Credentials (JavaScript Origins), you can run the app locally inside your browser:
-
-```bash
-flutter run -d web-server --web-port 5000 --web-hostname 0.0.0.0
-```
-
-### 3. Run on Emulators or Devices
 List available device emulators or connected targets:
-
 ```bash
 flutter emulators
 flutter devices
 ```
 
-Launch and deploy:
+Launch emulator and deploy:
+```bash
+flutter emulators --launch Pixel_9  # Or launch via Android Studio
+flutter run
+```
+
+### 2. Run as Native Linux Desktop App (Mock Mode)
+Standard Google OAuth plug-ins run in an adaptive **Mock Mode** on Linux desktop. This bypasses real Google Sign-in with a mock `'Test User'`.
 
 ```bash
-flutter emulators --launch <emulator_id>
-flutter run -d <device_id>
+flutter run -d linux
+```
+
+### 3. Run as Web Application
+If you have authorized `http://localhost:5000` inside your Google Cloud Console Credentials (JavaScript Origins), you can run the app locally inside your browser:
+
+```bash
+flutter run -d web-server --web-port 5000 --web-hostname 0.0.0.0
 ```
 
 ---

@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/services/auth_service.dart';
 import 'package:pocket_query/services/bigquery_service.dart';
+import 'package:pocket_query/services/logger_service.dart';
 import 'package:pocket_query/screens/splash_screen.dart';
 import 'package:pocket_query/screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LoggerService.init();
+
   runApp(
     MultiProvider(
       providers: [

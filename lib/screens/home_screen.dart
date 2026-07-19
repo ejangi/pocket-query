@@ -76,19 +76,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _runQuickCount() {
     final query = _queryController.text;
-    final parsedRef = SqlEditorController.parseTableReference(query);
-    
-    if (parsedRef != null) {
-      final datasetId = parsedRef['datasetId']!;
-      final tableId = parsedRef['tableId']!;
-      context.read<BigQueryService>().runQuickCount(datasetId, tableId);
-    } else {
+    if (query.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Could not parse table name. Format: FROM dataset.table"),
+          content: Text("Please enter a SQL query first."),
         ),
       );
+      return;
     }
+
+    final parsedRef = SqlEditorController.parseTableReference(query);
+    final datasetId = parsedRef?['datasetId'];
+    final tableId = parsedRef?['tableId'];
+
+    context.read<BigQueryService>().runQuickCount(
+          query,
+          datasetId: datasetId,
+          tableId: tableId,
+        );
   }
 
   String _formatCost(int? bytes) {
@@ -135,7 +140,10 @@ class _HomeScreenState extends State<HomeScreen> {
           _queryController.text = q;
         },
       ),
-      endDrawer: SchemaBrowser(onFieldSelected: _insertField),
+      endDrawer: SchemaBrowser(
+        onFieldSelected: _insertField,
+        activeQuery: _queryController.text,
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final totalHeight = constraints.maxHeight;

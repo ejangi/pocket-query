@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/services/bigquery_service.dart';
+import 'package:pocket_query/widgets/sql_editor_controller.dart';
 
 class SchemaBrowser extends StatefulWidget {
   final Function(String) onFieldSelected;
+  final String? activeQuery;
 
-  const SchemaBrowser({super.key, required this.onFieldSelected});
+  const SchemaBrowser({
+    super.key,
+    required this.onFieldSelected,
+    this.activeQuery,
+  });
 
   @override
   State<SchemaBrowser> createState() => _SchemaBrowserState();
@@ -14,6 +20,55 @@ class SchemaBrowser extends StatefulWidget {
 class _SchemaBrowserState extends State<SchemaBrowser> {
   String? _selectedDataset;
   String? _selectedTable;
+  String? _lastParsedQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _tryAutoNavigate();
+  }
+
+  @override
+  void didUpdateWidget(covariant SchemaBrowser oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activeQuery != widget.activeQuery) {
+      _tryAutoNavigate();
+    }
+  }
+
+  void _tryAutoNavigate() {
+    final query = widget.activeQuery;
+    if (query == null || query.trim().isEmpty || query == _lastParsedQuery) return;
+    _lastParsedQuery = query;
+
+    final parsed = SqlEditorController.parseTableReference(query);
+    if (parsed == null) return;
+
+    final targetDataset = parsed['datasetId'];
+    final targetTable = parsed['tableId'];
+
+    if (targetDataset == null || targetDataset == 'default_dataset' || targetTable == null) {
+      return;
+    }
+
+    final bq = Provider.of<BigQueryService>(context, listen: false);
+
+    // Find case-insensitive dataset match
+    String matchedDataset = targetDataset;
+    for (final ds in bq.datasets) {
+      if (ds.toLowerCase() == targetDataset.toLowerCase()) {
+        matchedDataset = ds;
+        break;
+      }
+    }
+
+    setState(() {
+      _selectedDataset = matchedDataset;
+      _selectedTable = targetTable;
+    });
+
+    bq.fetchTableSchema(matchedDataset, targetTable);
+  }
 
   @override
   Widget build(BuildContext context) {

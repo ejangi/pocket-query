@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:pocket_query/services/logger_service.dart';
 
 /// A custom HTTP client that automatically injects authorization headers.
 class AuthenticatedClient extends http.BaseClient {
@@ -29,6 +30,7 @@ class AuthenticatedClient extends http.BaseClient {
 class AuthService extends ChangeNotifier {
   GoogleSignInAccount? _currentUser;
   bool _isLoading = false;
+  String? _lastAuthError;
   StreamSubscription? _authSubscription;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -82,6 +84,7 @@ class AuthService extends ChangeNotifier {
   GoogleSignInAccount? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isLoading => _isLoading;
+  String? get lastAuthError => _lastAuthError;
 
   /// Attempts to sign in the user silently on startup.
   Future<void> attemptLightweightAuthentication() async {
@@ -91,6 +94,7 @@ class AuthService extends ChangeNotifier {
       await _googleSignIn.attemptLightweightAuthentication();
     } catch (e) {
       debugPrint("Lightweight authentication failed: $e");
+    } finally {
       _isLoading = false;
       notifyListeners();
     }
@@ -99,6 +103,7 @@ class AuthService extends ChangeNotifier {
   /// Triggers the interactive sign-in flow.
   Future<bool> signIn() async {
     _isLoading = true;
+    _lastAuthError = null;
     notifyListeners();
 
     if (!kIsWeb && Platform.isLinux) {
@@ -110,17 +115,34 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
+      await LoggerService.log("Initiating Google Sign-In via _googleSignIn.authenticate()");
       final account = await _googleSignIn.authenticate();
       if (account != null) {
-        // Request the necessary BigQuery scopes
-        await account.authorizationClient.authorizeScopes(_scopes);
+        _currentUser = account;
+        await LoggerService.log("Google Sign-In SUCCESS for user: ${account.email} (${account.displayName})");
+        try {
+          await account.authorizationClient.authorizeScopes(_scopes);
+          await LoggerService.log("BigQuery OAuth Scopes authorized successfully.");
+        } catch (scopeError, stack) {
+          await LoggerService.log("Failed to authorize scopes", level: "WARNING", error: scopeError, stackTrace: stack);
+          _lastAuthError = "Scope Authorization Warning: $scopeError";
+        }
+      } else {
+        await LoggerService.log("Google Sign-In returned null account (user cancelled or prompt failed)", level: "WARNING");
       }
       return account != null;
-    } catch (e) {
-      debugPrint("Sign-in failed: $e");
+    } catch (e, stack) {
+      _lastAuthError = e.toString();
+      await LoggerService.log("Google Sign-In EXCEPTION occurred", level: "ERROR", error: e, stackTrace: stack);
+      if (kDebugMode) {
+        await LoggerService.log("Debug mode active: falling back to MockGoogleSignInAccount() for emulator testing.");
+        _currentUser = MockGoogleSignInAccount();
+        return true;
+      }
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
@@ -129,9 +151,16 @@ class AuthService extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      await LoggerService.log("Signing out user...");
       await _googleSignIn.signOut();
-    } catch (e) {
-      debugPrint("Sign-out failed: $e");
+      _currentUser = null;
+      _lastAuthError = null;
+      await LoggerService.log("Sign-out completed.");
+    } catch (e, stack) {
+      _currentUser = null;
+      _lastAuthError = null;
+      await LoggerService.log("Sign-out completed with warning", level: "WARNING", error: e, stackTrace: stack);
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

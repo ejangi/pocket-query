@@ -60,7 +60,7 @@ void main() {
     });
 
     test('runQuickCount mock retrieves row count values', () async {
-      await service.runQuickCount('ecommerce_dataset', 'transactions');
+      await service.runQuickCount('SELECT * FROM ecommerce_dataset.transactions', datasetId: 'ecommerce_dataset', tableId: 'transactions');
       
       expect(service.isExecuting, isFalse);
       expect(service.quickCountResult, equals('10,413')); // Figma count format

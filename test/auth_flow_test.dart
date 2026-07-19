@@ -98,6 +98,9 @@ class MockAuthService extends ChangeNotifier implements AuthService {
   bool get isLoading => _isLoading;
 
   @override
+  String? get lastAuthError => null;
+
+  @override
   Future<void> attemptLightweightAuthentication() async {
     // Mock silent sign-in does nothing by default in this test
   }
