@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   EditorLayoutState _layoutState = EditorLayoutState.split;
   Timer? _debounceTimer;
+  String? _currentQueryName;
 
   @override
   void initState() {
@@ -96,6 +97,81 @@ class _HomeScreenState extends State<HomeScreen> {
         );
   }
 
+  void _toggleLimit100(bool enable) {
+    String text = _queryController.text;
+    final limitRegex = RegExp(r'\s+LIMIT\s+\d+\b', caseSensitive: false);
+
+    if (enable) {
+      if (limitRegex.hasMatch(text)) {
+        text = text.replaceAll(limitRegex, ' LIMIT 100');
+      } else {
+        text = '$text LIMIT 100';
+      }
+    } else {
+      text = text.replaceAll(limitRegex, '');
+    }
+
+    setState(() {
+      _queryController.text = text;
+    });
+  }
+
+  void _showSaveQueryDialog(BuildContext context, BigQueryService bq) {
+    final nameController = TextEditingController(
+      text: (_currentQueryName != null && _currentQueryName != 'Untitled Query')
+          ? _currentQueryName
+          : 'Saved Query 1',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save Query to BigQuery'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a name for this saved query:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'e.g. high_value_accounts',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final queryName = nameController.text.trim();
+              if (queryName.isNotEmpty) {
+                final sql = _queryController.text;
+                await bq.saveProjectQuery(sql);
+                setState(() {
+                  _currentQueryName = queryName;
+                });
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Query '$queryName' saved successfully!")),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatCost(int? bytes) {
     if (bytes == null) return "Dry Run: --";
     
@@ -136,8 +212,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: SideMenu(
-        onQuerySelected: (q) {
-          _queryController.text = q;
+        onQuerySelected: (q, {name}) {
+          setState(() {
+            _queryController.text = q;
+            _currentQueryName = name ?? 'Untitled Query';
+          });
         },
       ),
       endDrawer: SchemaBrowser(
@@ -167,19 +246,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Column(
             children: [
-              // Editor Panel
-              SizedBox(
-                height: editorHeight,
-                child: _buildEditorPanel(isDark, bigQueryService),
-              ),
-              // Layout Divider / Controller Bar
-              _buildDividerBar(),
-              // Results Panel
+              // Results Panel at top
               Expanded(
                 child: SizedBox(
                   height: resultsHeight,
                   child: _buildResultsPanel(isDark, bigQueryService),
                 ),
+              ),
+              // Layout Divider / Controller Bar just above editor
+              _buildStatusBar(bigQueryService),
+              // Editor Panel at bottom
+              SizedBox(
+                height: editorHeight,
+                child: _buildEditorPanel(isDark, bigQueryService),
               ),
             ],
           );
@@ -189,67 +268,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEditorPanel(bool isDark, BigQueryService bq) {
-    final bytes = bq.estimatedBytesScanned;
-    final hasError = bq.estimationError != null;
     final isExecuting = bq.isExecuting;
 
-    Widget badgeContent;
-    if (hasError) {
-      badgeContent = const Text(
-        'SQL Error',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Colors.redAccent,
-        ),
-      );
-    } else {
-      badgeContent = Text(
-        _formatCost(bytes),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.blue[300] : const Color(0xFF536DFE),
-        ),
-      );
-    }
+    final isLimit100 = RegExp(r'\bLIMIT\s+100\b', caseSensitive: false)
+        .hasMatch(_queryController.text);
 
     return Container(
       color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         children: [
-          // Toolbar with Actions
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: isExecuting ? null : _runQuery,
-                icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('Run'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF536DFE),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: isExecuting ? null : _runQuickCount,
-                child: const Text('Quick Count'),
-              ),
-              const Spacer(),
-              // Dry-run cost estimator badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (hasError ? Colors.redAccent : const Color(0xFF536DFE)).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: badgeContent,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           // Code Box
           Expanded(
             child: Container(
@@ -293,12 +321,81 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 6),
+          // Bottom Accessory / Action Bar (positioned at bottom / above soft keyboard)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF252526) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[isDark ? 800 : 300]!),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left Aligned Buttons (Save & Navigator Tray)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _showSaveQueryDialog(context, bq),
+                      icon: const Icon(Icons.save_outlined, size: 16),
+                      label: const Text('Save', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                      icon: const Icon(Icons.account_tree_outlined, size: 20),
+                      tooltip: 'Open Datasets & Tables Tray',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                // Right Aligned Buttons (Limit 100 & Run drop-up)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilterChip(
+                      label: const Text('Limit 100', style: TextStyle(fontSize: 12)),
+                      selected: isLimit100,
+                      onSelected: (selected) {
+                        _toggleLimit100(selected);
+                      },
+                      selectedColor: const Color(0xFF536DFE).withOpacity(0.2),
+                      checkmarkColor: const Color(0xFF536DFE),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildRunDropUpButton(isExecuting),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDividerBar() {
+  Widget _buildStatusBar(BigQueryService bq) {
+    final title = (_currentQueryName != null && _currentQueryName!.isNotEmpty)
+        ? _currentQueryName!
+        : 'Untitled Query';
+
     return Container(
       height: 36,
       color: const Color(0xFF536DFE),
@@ -306,9 +403,17 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'QUERY EDITOR STATUS',
-            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
           Row(
             children: [
@@ -316,37 +421,109 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
+                tooltip: 'Maximise Editor',
                 onPressed: () {
                   setState(() {
-                    _layoutState = EditorLayoutState.maximised;
+                    _layoutState = _layoutState == EditorLayoutState.maximised
+                        ? EditorLayoutState.split
+                        : EditorLayoutState.maximised;
                   });
                 },
               ),
-              const SizedBox(width: 12),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.swap_vert, color: Colors.white, size: 16),
-                onPressed: () {
-                  setState(() {
-                    _layoutState = EditorLayoutState.split;
-                  });
-                },
-              ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
+                tooltip: 'Minimise Editor',
                 onPressed: () {
                   setState(() {
-                    _layoutState = EditorLayoutState.minimised;
+                    _layoutState = _layoutState == EditorLayoutState.minimised
+                        ? EditorLayoutState.split
+                        : EditorLayoutState.minimised;
                   });
                 },
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRunDropUpButton(bool isExecuting) {
+    if (isExecuting) {
+      return ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF536DFE),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 6),
+            Text('Running...', style: TextStyle(color: Colors.white, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Run Options',
+      offset: const Offset(0, -105),
+      onSelected: (value) {
+        if (value == 'run') {
+          _runQuery();
+        } else if (value == 'quick_count') {
+          _runQuickCount();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          value: 'run',
+          child: Row(
+            children: [
+              Icon(Icons.play_arrow, color: Color(0xFF536DFE), size: 18),
+              SizedBox(width: 8),
+              Text('Run Query'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'quick_count',
+          child: Row(
+            children: [
+              Icon(Icons.flash_on, color: Colors.orangeAccent, size: 18),
+              SizedBox(width: 8),
+              Text('Run Quick Count'),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF536DFE),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_arrow, size: 18, color: Colors.white),
+            SizedBox(width: 4),
+            Text('Run', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+            SizedBox(width: 2),
+            Icon(Icons.arrow_drop_up, size: 18, color: Colors.white),
+          ],
+        ),
       ),
     );
   }

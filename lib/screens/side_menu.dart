@@ -4,7 +4,7 @@ import 'package:pocket_query/services/auth_service.dart';
 import 'package:pocket_query/services/bigquery_service.dart';
 
 class SideMenu extends StatefulWidget {
-  final Function(String) onQuerySelected;
+  final Function(String sql, {String? name}) onQuerySelected;
 
   const SideMenu({super.key, required this.onQuerySelected});
 
@@ -250,7 +250,7 @@ class _SideMenuState extends State<SideMenu> {
       onTap: () async {
         final bq = context.read<BigQueryService>();
         final sql = await bq.fetchDataformQueryContent(queryText) ?? queryText;
-        widget.onQuerySelected(sql);
+        widget.onQuerySelected(sql, name: displayName);
         if (context.mounted) {
           Navigator.pop(context);
         }
