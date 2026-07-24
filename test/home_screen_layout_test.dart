@@ -60,4 +60,28 @@ void main() {
     expect(find.text('Run Query'), findsOneWidget);
     expect(find.text('Run Quick Count'), findsOneWidget);
   });
+
+  testWidgets('Double-tapping the top title bar triggers scroll-to-top safely', (WidgetTester tester) async {
+    await tester.pumpWidget(createHomeScreenWidget());
+    await tester.pumpAndSettle();
+
+    final titleFinder = find.text('Pocket Query');
+    expect(titleFinder, findsOneWidget);
+
+    // Perform double tap gesture on top title
+    await tester.tap(titleFinder);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(titleFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Scroll to Top button exists in AppBar
+    final scrollToTopBtn = find.byIcon(Icons.vertical_align_top_rounded);
+    expect(scrollToTopBtn, findsOneWidget);
+    await tester.tap(scrollToTopBtn);
+    await tester.pumpAndSettle();
+
+    // Verify Download Results button exists in AppBar
+    final downloadBtn = find.byIcon(Icons.file_download_outlined);
+    expect(downloadBtn, findsOneWidget);
+  });
 }

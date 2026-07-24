@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:pocket_query/screens/side_menu.dart';
@@ -27,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final SqlEditorController _queryController;
   final FocusNode _editorFocusNode = FocusNode();
   
+  final ScrollController _resultsScrollController = ScrollController();
   EditorLayoutState _layoutState = EditorLayoutState.split;
   Timer? _debounceTimer;
   String? _currentQueryName;
@@ -37,6 +42,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _queryController = SqlEditorController()
       ..text = "SELECT Name, Employees FROM Accounts WHERE Size = 'Large' LIMIT 1000";
     _queryController.addListener(_onQueryChanged);
+  }
+
+  void _scrollToTop() {
+    if (_resultsScrollController.hasClients) {
+      _resultsScrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onQueryChanged() {
@@ -52,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();
+    _resultsScrollController.dispose();
     _editorFocusNode.dispose();
     _debounceTimer?.cancel();
     super.dispose();
@@ -173,6 +189,176 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showDownloadFormatDialog(BuildContext context, BigQueryService bq) {
+    final columns = bq.resultColumns;
+    final rows = bq.resultRows;
+
+    if (columns.isEmpty || rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No query results available to download."),
+        ),
+      );
+      return;
+    }
+
+    String selectedFormat = 'CSV';
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.file_download_outlined, color: Color(0xFF536DFE)),
+                  SizedBox(width: 8),
+                  Text('Download Results'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Exporting ${rows.length} rows (${columns.length} columns):',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 12),
+                    RadioListTile<String>(
+                      dense: true,
+                      title: const Text('CSV (Comma Separated)'),
+                      subtitle: const Text('Standard spreadsheet CSV format'),
+                      value: 'CSV',
+                      groupValue: selectedFormat,
+                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                    ),
+                    RadioListTile<String>(
+                      dense: true,
+                      title: const Text('JSON (Formatted Array)'),
+                      subtitle: const Text('Array of JSON objects'),
+                      value: 'JSON',
+                      groupValue: selectedFormat,
+                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                    ),
+                    RadioListTile<String>(
+                      dense: true,
+                      title: const Text('JSONL (Newline Delimited JSON)'),
+                      subtitle: const Text('BigQuery standard JSONL format'),
+                      value: 'JSONL',
+                      groupValue: selectedFormat,
+                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                    ),
+                    RadioListTile<String>(
+                      dense: true,
+                      title: const Text('TSV (Tab Separated)'),
+                      subtitle: const Text('Tab-delimited text data'),
+                      value: 'TSV',
+                      groupValue: selectedFormat,
+                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save_alt, size: 18),
+                  label: const Text('Save File'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF536DFE),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    String exportContent = '';
+                    if (selectedFormat == 'CSV') {
+                      final header = columns.join(',');
+                      final dataRows = rows.map((r) => columns.map((c) => '"${(r[c] ?? '').replaceAll('"', '""')}"').join(','));
+                      exportContent = '$header\n${dataRows.join('\n')}';
+                    } else if (selectedFormat == 'JSON') {
+                      exportContent = const JsonEncoder.withIndent('  ').convert(rows);
+                    } else if (selectedFormat == 'JSONL') {
+                      exportContent = rows.map((r) => jsonEncode(r)).join('\n');
+                    } else if (selectedFormat == 'TSV') {
+                      final header = columns.join('\t');
+                      final dataRows = rows.map((r) => columns.map((c) => r[c] ?? '').join('\t'));
+                      exportContent = '$header\n${dataRows.join('\n')}';
+                    }
+
+                    final ext = selectedFormat.toLowerCase();
+                    final defaultFileName = 'query_results.$ext';
+                    final bytes = Uint8List.fromList(utf8.encode(exportContent));
+                    
+                    String? outputPath;
+                    try {
+                      outputPath = await FilePicker.platform.saveFile(
+                        dialogTitle: 'Select location to save results',
+                        fileName: defaultFileName,
+                        type: FileType.custom,
+                        allowedExtensions: [ext],
+                        bytes: bytes,
+                      );
+                    } catch (e) {
+                      debugPrint("FilePicker saveFile error: $e");
+                    }
+
+                    bool savedSuccessfully = false;
+                    if (outputPath != null && outputPath.isNotEmpty) {
+                      try {
+                        final file = File(outputPath);
+                        await file.writeAsBytes(bytes, flush: true);
+                        if (file.existsSync() && file.lengthSync() > 0) {
+                          savedSuccessfully = true;
+                        }
+                      } catch (e) {
+                        debugPrint("Direct File write exception for $outputPath: $e");
+                      }
+                    }
+
+                    // Fallback to Documents/Downloads directory if direct save path failed or was 0 bytes
+                    if (!savedSuccessfully) {
+                      Directory? targetDir;
+                      try {
+                        targetDir = await getDownloadsDirectory();
+                      } catch (_) {}
+                      targetDir ??= await getApplicationDocumentsDirectory();
+
+                      final fallbackPath = '${targetDir.path}/$defaultFileName';
+                      final fallbackFile = File(fallbackPath);
+                      await fallbackFile.writeAsBytes(bytes, flush: true);
+                      outputPath = fallbackPath;
+                      savedSuccessfully = true;
+                    }
+
+                    // Also copy to clipboard as instant backup
+                    await Clipboard.setData(ClipboardData(text: exportContent));
+
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      final savedFile = File(outputPath!);
+                      final fileSize = savedFile.existsSync() ? savedFile.lengthSync() : bytes.length;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Saved ${rows.length} rows ($fileSize bytes) to:\n$outputPath"),
+                          duration: const Duration(seconds: 5),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   String _formatCost(int? bytes) {
     if (bytes == null) return "Dry Run: --";
     
@@ -198,13 +384,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        flexibleSpace: GestureDetector(
+          onDoubleTap: _scrollToTop,
+          behavior: HitTestBehavior.translucent,
+          child: const SizedBox.expand(),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
-        title: const Text('Pocket Query'),
+        title: GestureDetector(
+          onDoubleTap: _scrollToTop,
+          behavior: HitTestBehavior.opaque,
+          child: const SizedBox(
+            width: double.infinity,
+            child: Text('Pocket Query'),
+          ),
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.vertical_align_top_rounded),
+            tooltip: 'Scroll Results to Top',
+            onPressed: _scrollToTop,
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Download Query Results',
+            onPressed: () => _showDownloadFormatDialog(context, bigQueryService),
+          ),
           IconButton(
             icon: const Icon(Icons.account_tree_outlined),
             tooltip: 'Browse Schema',
@@ -392,10 +601,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ? _currentQueryName!
         : 'Untitled Query';
 
-    return Container(
-      height: 36,
-      color: const Color(0xFF536DFE),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return GestureDetector(
+      onDoubleTap: _scrollToTop,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 36,
+        color: const Color(0xFF536DFE),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -444,7 +656,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildRunDropUpButton(bool isExecuting) {
@@ -626,22 +839,79 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: columns.map((c) => DataColumn(
-            label: Text(
-              c,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+    final tableWidth = columns.length * 160.0 > 360.0 ? columns.length * 160.0 : 360.0;
+
+    return GestureDetector(
+      onDoubleTap: _scrollToTop,
+      behavior: HitTestBehavior.opaque,
+      child: NotificationListener<ScrollNotification>(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Column(
+              children: [
+                // Sticky Header Row (Double-tap or tap header row to scroll to top)
+                GestureDetector(
+                  onTap: _scrollToTop,
+                  onDoubleTap: _scrollToTop,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    color: isDark ? const Color(0xFF1E2024) : Colors.grey[200],
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    child: Row(
+                      children: columns.map((col) => Expanded(
+                        child: Text(
+                          col,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1, thickness: 1),
+                // Virtualized List View (Renders only items visible on screen)
+                Expanded(
+                  child: ListView.builder(
+                    controller: _resultsScrollController,
+                    itemCount: rows.length,
+                    itemExtent: 44.0,
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      final isEven = index % 2 == 0;
+                      return Container(
+                        height: 44.0,
+                        color: isEven
+                            ? (isDark ? Colors.transparent : Colors.white)
+                            : (isDark ? Colors.white.withOpacity(0.04) : Colors.grey[100]),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: columns.map((col) => Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                row[col] ?? '',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          )).toList(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          )).toList(),
-          rows: rows.map((row) => DataRow(
-            cells: columns.map((col) => DataCell(
-              Text(row[col] ?? ''),
-            )).toList(),
-          )).toList(),
+          ),
         ),
       ),
     );

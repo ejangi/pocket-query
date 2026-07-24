@@ -73,3 +73,28 @@ python3 scratch/update_bigquery_syntax.py
 ```
 
 This compiles lexical tables into `assets/metadata/bigquery_syntax.json`, which is bundled directly with the application package.
+
+
+## Testing large queries
+
+BigQuery offers some public datasets that can be handy for testing large results:
+
+```sql
+SELECT 
+  stn,
+  wban,
+  year,
+  mo,
+  da,
+  temp,
+  count_temp,
+  dewp,
+  slp,
+  visib,
+  wdsp,
+  max,
+  min,
+  prcp
+FROM `bigquery-public-data.noaa_gsod.gsod2023`
+LIMIT 1000
+```
