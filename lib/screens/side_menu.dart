@@ -13,24 +13,20 @@ class SideMenu extends StatefulWidget {
 }
 
 class _SideMenuState extends State<SideMenu> {
-  // Mock Queries matching Figma specs
-  final List<String> _projectQueries = [
-    'online_transactions_this_month',
-    'accounts_with_no_primary_contact',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final bigQueryService = context.watch<BigQueryService>();
-    
+
     final user = authService.currentUser;
     final projects = bigQueryService.projects;
     final selectedProject = bigQueryService.selectedProjectId;
-    
+
     final displayName = user?.displayName ?? "James Angus";
     final displayEmail = user?.email ?? "mygmailadddress@gmail.com";
-    final displayInitial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "U";
+    final displayInitial = displayName.isNotEmpty
+        ? displayName[0].toUpperCase()
+        : "U";
 
     return Drawer(
       child: Column(
@@ -89,7 +85,10 @@ class _SideMenuState extends State<SideMenu> {
           const Divider(height: 1),
           // Project Selector Dropdown
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -104,7 +103,8 @@ class _SideMenuState extends State<SideMenu> {
                         color: Colors.grey[600],
                       ),
                     ),
-                    if (bigQueryService.isLoadingProjects || bigQueryService.isLoadingProjectQueries)
+                    if (bigQueryService.isLoadingProjects ||
+                        bigQueryService.isLoadingProjectQueries)
                       const SizedBox(
                         width: 14,
                         height: 14,
@@ -115,11 +115,18 @@ class _SideMenuState extends State<SideMenu> {
                         onTap: () => bigQueryService.refreshAll(),
                         child: Row(
                           children: [
-                            Icon(Icons.refresh, size: 14, color: Colors.grey[600]),
+                            Icon(
+                              Icons.refresh,
+                              size: 14,
+                              color: Colors.grey[600],
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Refresh',
-                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),
@@ -135,21 +142,37 @@ class _SideMenuState extends State<SideMenu> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
-                      value: selectedProject != null && projects.contains(selectedProject) ? selectedProject : null,
+                      value:
+                          selectedProject != null &&
+                              projects.contains(selectedProject)
+                          ? selectedProject
+                          : null,
                       isExpanded: true,
                       hint: const Text("Select project..."),
                       items: [
-                        ...projects.map((val) => DropdownMenuItem(
-                              value: val,
-                              child: Text(val, overflow: TextOverflow.ellipsis),
-                            )),
+                        ...projects.map(
+                          (val) => DropdownMenuItem(
+                            value: val,
+                            child: Text(val, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
                         const DropdownMenuItem(
                           value: '__add_custom__',
                           child: Row(
                             children: [
-                              Icon(Icons.add, size: 18, color: Color(0xFF536DFE)),
+                              Icon(
+                                Icons.add,
+                                size: 18,
+                                color: Color(0xFF536DFE),
+                              ),
                               SizedBox(width: 8),
-                              Text("Enter Project ID...", style: TextStyle(color: Color(0xFF536DFE), fontWeight: FontWeight.bold)),
+                              Text(
+                                "Enter Project ID...",
+                                style: TextStyle(
+                                  color: Color(0xFF536DFE),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -178,27 +201,50 @@ class _SideMenuState extends State<SideMenu> {
                 _buildSectionHeader('PROJECT QUERIES'),
                 if (bigQueryService.projectQueries.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 6.0,
+                    ),
                     child: Text(
                       'No saved queries for this project.',
-                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   )
                 else
-                  ...bigQueryService.projectQueries.map((q) => _buildQueryItem(q, Icons.star_outline)),
+                  ...bigQueryService.projectQueries.map(
+                    (q) => _buildSavedQueryTile(q, bigQueryService),
+                  ),
+
                 const Divider(),
                 _buildSectionHeader('RECENT QUERY HISTORY'),
                 if (bigQueryService.isLoadingProjectQueries)
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
                   )
                 else if (bigQueryService.recentQueries.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 6.0,
+                    ),
                     child: Text(
                       'No recent query history found.',
-                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   )
                 else
@@ -207,10 +253,18 @@ class _SideMenuState extends State<SideMenu> {
                       q,
                       Icons.history,
                       onBookmark: () async {
-                        await bigQueryService.saveProjectQuery(q);
+                        final bookmarkName = q.split('\n').first.trim();
+                        await bigQueryService.saveProjectQuery(
+                          q,
+                          name: bookmarkName.isNotEmpty
+                              ? bookmarkName
+                              : 'Saved Query',
+                        );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Query saved to Project Queries!")),
+                            const SnackBar(
+                              content: Text("Query saved to Project Queries!"),
+                            ),
                           );
                         }
                       },
@@ -220,14 +274,23 @@ class _SideMenuState extends State<SideMenu> {
                 _buildSectionHeader('PERSONAL QUERIES'),
                 if (bigQueryService.personalQueries.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 6.0,
+                    ),
                     child: Text(
                       'No personal saved queries.',
-                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   )
                 else
-                  ...bigQueryService.personalQueries.map((q) => _buildQueryItem(q, Icons.lock_outline)),
+                  ...bigQueryService.personalQueries.map(
+                    (q) => _buildQueryItem(q, Icons.lock_outline),
+                  ),
               ],
             ),
           ),
@@ -240,7 +303,10 @@ class _SideMenuState extends State<SideMenu> {
           ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent)),
+            title: const Text(
+              'Sign Out',
+              style: TextStyle(color: Colors.redAccent),
+            ),
             onTap: () async {
               await authService.signOut();
             },
@@ -265,7 +331,224 @@ class _SideMenuState extends State<SideMenu> {
     );
   }
 
-  Widget _buildQueryItem(String queryText, IconData icon, {VoidCallback? onBookmark}) {
+  Widget _buildSavedQueryTile(SavedQuery q, BigQueryService bq) {
+    return ListTile(
+      leading: Icon(
+        q.isCloudView ? Icons.cloud_done_outlined : Icons.star_outline,
+        size: 20,
+        color: q.isCloudView ? const Color(0xFF536DFE) : Colors.amber[700],
+      ),
+      title: Text(
+        q.name,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        q.sql.replaceAll('\n', ' '),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+      ),
+      trailing: PopupMenuButton<String>(
+        icon: Icon(Icons.more_vert, size: 18, color: Colors.grey[600]),
+        onSelected: (action) {
+          if (action == 'rename') {
+            _showRenameQueryDialog(context, bq, q);
+          } else if (action == 'delete') {
+            _showDeleteQueryDialog(context, bq, q);
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'rename',
+            child: Row(
+              children: [
+                Icon(Icons.edit_outlined, size: 16),
+                SizedBox(width: 8),
+                Text('Rename'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                SizedBox(width: 8),
+                Text('Delete', style: TextStyle(color: Colors.redAccent)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        widget.onQuerySelected(q.sql, name: q.name);
+      },
+    );
+  }
+
+  void _showRenameQueryDialog(
+    BuildContext context,
+    BigQueryService bq,
+    SavedQuery q,
+  ) {
+    final controller = TextEditingController(text: q.name);
+    bool isProcessing = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isProcessing,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Rename Query "${q.name}"'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                enabled: !isProcessing,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'New Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              if (isProcessing) ...[
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Renaming in BigQuery Studio...',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF536DFE)),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      final newName = controller.text.trim();
+                      if (newName.isNotEmpty && newName != q.name) {
+                        setDialogState(() {
+                          isProcessing = true;
+                        });
+                        await bq.renameProjectQuery(q.name, newName);
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "Renamed query to '$newName' in BigQuery Studio!",
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Rename'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteQueryDialog(
+    BuildContext context,
+    BigQueryService bq,
+    SavedQuery q,
+  ) {
+    bool isProcessing = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isProcessing,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Delete Query "${q.name}"?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to delete "${q.name}" from BigQuery Studio and your project saved queries?',
+                style: const TextStyle(fontSize: 13),
+              ),
+              if (isProcessing) ...[
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Deleting from BigQuery Studio...',
+                      style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        isProcessing = true;
+                      });
+                      await bq.deleteProjectQuery(q.name);
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Deleted '${q.name}' from BigQuery Studio!",
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueryItem(
+    String queryText,
+    IconData icon, {
+    VoidCallback? onBookmark,
+  }) {
     final displayName = queryText.split('\n').first.trim();
     return ListTile(
       leading: Icon(icon, size: 20),
@@ -276,18 +559,18 @@ class _SideMenuState extends State<SideMenu> {
       ),
       trailing: onBookmark != null
           ? IconButton(
-              icon: const Icon(Icons.star_border, size: 18, color: Color(0xFF536DFE)),
+              icon: const Icon(
+                Icons.star_border,
+                size: 18,
+                color: Color(0xFF536DFE),
+              ),
               tooltip: 'Save to Project Queries',
               onPressed: onBookmark,
             )
           : null,
-      onTap: () async {
-        final bq = context.read<BigQueryService>();
-        final sql = await bq.fetchDataformQueryContent(queryText) ?? queryText;
-        widget.onQuerySelected(sql, name: displayName);
-        if (context.mounted) {
-          Navigator.pop(context);
-        }
+      onTap: () {
+        Navigator.pop(context);
+        widget.onQuerySelected(queryText, name: displayName);
       },
     );
   }
@@ -344,7 +627,11 @@ class _SideMenuState extends State<SideMenu> {
         children: [
           Row(
             children: [
-              Icon(Icons.bug_report_outlined, color: Colors.amber.shade900, size: 20),
+              Icon(
+                Icons.bug_report_outlined,
+                color: Colors.amber.shade900,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -362,30 +649,50 @@ class _SideMenuState extends State<SideMenu> {
           if (authError != null) ...[
             const Text(
               'OAuth Sign-In Exception:',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.redAccent,
+              ),
             ),
             const SizedBox(height: 2),
             SelectableText(
               authError,
-              style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.redAccent),
+              style: const TextStyle(
+                fontSize: 10,
+                fontFamily: 'monospace',
+                color: Colors.redAccent,
+              ),
             ),
             const SizedBox(height: 8),
           ],
           if (bqError != null) ...[
             const Text(
               'BigQuery API Diagnostics:',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
             ),
             const SizedBox(height: 2),
             SelectableText(
               bqError,
-              style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.deepOrange),
+              style: const TextStyle(
+                fontSize: 10,
+                fontFamily: 'monospace',
+                color: Colors.deepOrange,
+              ),
             ),
             const SizedBox(height: 8),
           ],
           const Text(
             'To enable real Google Sign-In on Android Emulator:',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -405,12 +712,20 @@ class _SideMenuState extends State<SideMenu> {
               children: const [
                 SelectableText(
                   'Package Name: com.pocketquery.pocket_query',
-                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(height: 2),
                 SelectableText(
                   'SHA-1: 90:1B:C6:35:16:5E:54:37:97:3E:14:7D:96:83:F7:37:2A:C7:BA:0D',
-                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -421,7 +736,10 @@ class _SideMenuState extends State<SideMenu> {
             child: OutlinedButton.icon(
               onPressed: () => _showAddProjectDialog(context, bq),
               icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Enter Project ID Manually', style: TextStyle(fontSize: 12)),
+              label: const Text(
+                'Enter Project ID Manually',
+                style: TextStyle(fontSize: 12),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF536DFE),
                 side: const BorderSide(color: Color(0xFF536DFE)),

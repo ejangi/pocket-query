@@ -13,11 +13,7 @@ import 'package:pocket_query/widgets/sql_editor_controller.dart';
 import 'package:pocket_query/widgets/autocomplete_overlay.dart';
 import 'package:pocket_query/services/bigquery_service.dart';
 
-enum EditorLayoutState {
-  minimised,
-  split,
-  maximised,
-}
+enum EditorLayoutState { minimised, split, maximised }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final SqlEditorController _queryController;
   final FocusNode _editorFocusNode = FocusNode();
-  
+
   final ScrollController _resultsScrollController = ScrollController();
   EditorLayoutState _layoutState = EditorLayoutState.split;
   Timer? _debounceTimer;
@@ -40,7 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _queryController = SqlEditorController()
-      ..text = "SELECT Name, Employees FROM Accounts WHERE Size = 'Large' LIMIT 1000";
+      ..text =
+          "SELECT Name, Employees FROM Accounts WHERE Size = 'Large' LIMIT 1000";
     _queryController.addListener(_onQueryChanged);
   }
 
@@ -58,7 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 800), () {
       if (mounted) {
-        context.read<BigQueryService>().estimateQueryCost(_queryController.text);
+        context.read<BigQueryService>().estimateQueryCost(
+          _queryController.text,
+        );
       }
     });
   }
@@ -76,12 +75,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _insertField(String fieldName) {
     final text = _queryController.text;
     final selection = _queryController.selection;
-    
+
     if (selection.start >= 0) {
-      final newText = text.replaceRange(selection.start, selection.end, fieldName);
+      final newText = text.replaceRange(
+        selection.start,
+        selection.end,
+        fieldName,
+      );
       _queryController.value = TextEditingValue(
         text: newText,
-        selection: TextSelection.collapsed(offset: selection.start + fieldName.length),
+        selection: TextSelection.collapsed(
+          offset: selection.start + fieldName.length,
+        ),
       );
     } else {
       _queryController.text = "$text $fieldName";
@@ -96,9 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final query = _queryController.text;
     if (query.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter a SQL query first."),
-        ),
+        const SnackBar(content: Text("Please enter a SQL query first.")),
       );
       return;
     }
@@ -108,10 +111,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final tableId = parsedRef?['tableId'];
 
     context.read<BigQueryService>().runQuickCount(
-          query,
-          datasetId: datasetId,
-          tableId: tableId,
-        );
+      query,
+      datasetId: datasetId,
+      tableId: tableId,
+    );
   }
 
   void _toggleLimit100(bool enable) {
@@ -134,57 +137,165 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSaveQueryDialog(BuildContext context, BigQueryService bq) {
+    final bool isExistingQuery =
+        _currentQueryName != null &&
+        _currentQueryName != 'Untitled Query' &&
+        bq.projectQueries.any((q) => q.name == _currentQueryName);
+
+    int saveOption = isExistingQuery ? 0 : 1;
     final nameController = TextEditingController(
-      text: (_currentQueryName != null && _currentQueryName != 'Untitled Query')
-          ? _currentQueryName
-          : 'Saved Query 1',
+      text: isExistingQuery ? '${_currentQueryName}_copy' : 'saved_query_1',
     );
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Save Query to BigQuery'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter a name for this saved query:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'e.g. high_value_accounts',
-                border: OutlineInputBorder(),
-              ),
+      barrierDismissible: !isSaving,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            isExistingQuery ? 'Save Changes' : 'Save Query to BigQuery',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isExistingQuery) ...[
+                RadioListTile<int>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Overwrite existing query "$_currentQueryName"',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  value: 0,
+                  groupValue: saveOption,
+                  onChanged: isSaving
+                      ? null
+                      : (val) {
+                          setDialogState(() {
+                            saveOption = val!;
+                          });
+                        },
+                ),
+                RadioListTile<int>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Save as a new query',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  value: 1,
+                  groupValue: saveOption,
+                  onChanged: isSaving
+                      ? null
+                      : (val) {
+                          setDialogState(() {
+                            saveOption = val!;
+                          });
+                        },
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (!isExistingQuery || saveOption == 1) ...[
+                const Text('Enter a name for this saved query:'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: nameController,
+                  enabled: !isSaving,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'e.g. high_value_accounts',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              if (isSaving) ...[
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Saving to BigQuery Studio...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF536DFE),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final sql = _queryController.text;
+                      String targetName = _currentQueryName ?? 'saved_query_1';
+
+                      if (!isExistingQuery || saveOption == 1) {
+                        targetName = nameController.text.trim();
+                        if (targetName.isEmpty) return;
+                      }
+
+                      setDialogState(() {
+                        isSaving = true;
+                      });
+
+                      if (isExistingQuery && saveOption == 0) {
+                        await bq.updateProjectQuery(sql, name: targetName);
+                      } else {
+                        await bq.saveProjectQuery(sql, name: targetName);
+                      }
+
+                      if (mounted) {
+                        setState(() {
+                          _currentQueryName = targetName;
+                        });
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Query '$targetName' saved to BigQuery Studio!",
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      (isExistingQuery && saveOption == 0)
+                          ? 'Overwrite'
+                          : 'Save',
+                    ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final queryName = nameController.text.trim();
-              if (queryName.isNotEmpty) {
-                final sql = _queryController.text;
-                await bq.saveProjectQuery(sql);
-                setState(() {
-                  _currentQueryName = queryName;
-                });
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Query '$queryName' saved successfully!")),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
@@ -233,7 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: const Text('Standard spreadsheet CSV format'),
                       value: 'CSV',
                       groupValue: selectedFormat,
-                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedFormat = val!),
                     ),
                     RadioListTile<String>(
                       dense: true,
@@ -241,7 +353,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: const Text('Array of JSON objects'),
                       value: 'JSON',
                       groupValue: selectedFormat,
-                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedFormat = val!),
                     ),
                     RadioListTile<String>(
                       dense: true,
@@ -249,7 +362,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: const Text('BigQuery standard JSONL format'),
                       value: 'JSONL',
                       groupValue: selectedFormat,
-                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedFormat = val!),
                     ),
                     RadioListTile<String>(
                       dense: true,
@@ -257,7 +371,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: const Text('Tab-delimited text data'),
                       value: 'TSV',
                       groupValue: selectedFormat,
-                      onChanged: (val) => setDialogState(() => selectedFormat = val!),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedFormat = val!),
                     ),
                   ],
                 ),
@@ -278,22 +393,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     String exportContent = '';
                     if (selectedFormat == 'CSV') {
                       final header = columns.join(',');
-                      final dataRows = rows.map((r) => columns.map((c) => '"${(r[c] ?? '').replaceAll('"', '""')}"').join(','));
+                      final dataRows = rows.map(
+                        (r) => columns
+                            .map(
+                              (c) => '"${(r[c] ?? '').replaceAll('"', '""')}"',
+                            )
+                            .join(','),
+                      );
                       exportContent = '$header\n${dataRows.join('\n')}';
                     } else if (selectedFormat == 'JSON') {
-                      exportContent = const JsonEncoder.withIndent('  ').convert(rows);
+                      exportContent = const JsonEncoder.withIndent(
+                        '  ',
+                      ).convert(rows);
                     } else if (selectedFormat == 'JSONL') {
                       exportContent = rows.map((r) => jsonEncode(r)).join('\n');
                     } else if (selectedFormat == 'TSV') {
                       final header = columns.join('\t');
-                      final dataRows = rows.map((r) => columns.map((c) => r[c] ?? '').join('\t'));
+                      final dataRows = rows.map(
+                        (r) => columns.map((c) => r[c] ?? '').join('\t'),
+                      );
                       exportContent = '$header\n${dataRows.join('\n')}';
                     }
 
                     final ext = selectedFormat.toLowerCase();
                     final defaultFileName = 'query_results.$ext';
-                    final bytes = Uint8List.fromList(utf8.encode(exportContent));
-                    
+                    final bytes = Uint8List.fromList(
+                      utf8.encode(exportContent),
+                    );
+
                     String? outputPath;
                     try {
                       outputPath = await FilePicker.platform.saveFile(
@@ -316,7 +443,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           savedSuccessfully = true;
                         }
                       } catch (e) {
-                        debugPrint("Direct File write exception for $outputPath: $e");
+                        debugPrint(
+                          "Direct File write exception for $outputPath: $e",
+                        );
                       }
                     }
 
@@ -341,10 +470,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (context.mounted) {
                       Navigator.pop(ctx);
                       final savedFile = File(outputPath!);
-                      final fileSize = savedFile.existsSync() ? savedFile.lengthSync() : bytes.length;
+                      final fileSize = savedFile.existsSync()
+                          ? savedFile.lengthSync()
+                          : bytes.length;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text("Saved ${rows.length} rows ($fileSize bytes) to:\n$outputPath"),
+                          content: Text(
+                            "Saved ${rows.length} rows ($fileSize bytes) to:\n$outputPath",
+                          ),
                           duration: const Duration(seconds: 5),
                         ),
                       );
@@ -357,23 +490,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
-  }
-
-  String _formatCost(int? bytes) {
-    if (bytes == null) return "Dry Run: --";
-    
-    double val = bytes.toDouble();
-    List<String> units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    int unitIndex = 0;
-    while (val >= 1024 && unitIndex < units.length - 1) {
-      val /= 1024;
-      unitIndex++;
-    }
-    
-    double tb = bytes / (1024.0 * 1024.0 * 1024.0 * 1024.0);
-    double cost = tb * 5.0; // BigQuery pricing: $5.00 per TB
-    
-    return "Dry Run: ${val.toStringAsFixed(1)} ${units[unitIndex]} (\$${cost.toStringAsFixed(4)})";
   }
 
   @override
@@ -412,7 +528,8 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
             tooltip: 'Download Query Results',
-            onPressed: () => _showDownloadFormatDialog(context, bigQueryService),
+            onPressed: () =>
+                _showDownloadFormatDialog(context, bigQueryService),
           ),
           IconButton(
             icon: const Icon(Icons.account_tree_outlined),
@@ -480,8 +597,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildEditorPanel(bool isDark, BigQueryService bq) {
     final isExecuting = bq.isExecuting;
 
-    final isLimit100 = RegExp(r'\bLIMIT\s+100\b', caseSensitive: false)
-        .hasMatch(_queryController.text);
+    final isLimit100 = RegExp(
+      r'\bLIMIT\s+100\b',
+      caseSensitive: false,
+    ).hasMatch(_queryController.text);
 
     return Container(
       color: const Color(0xFF2F3237),
@@ -495,19 +614,27 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Focus(
                 onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
+                  if (event is KeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.tab) {
                     final text = _queryController.text;
                     final selection = _queryController.selection;
                     const tabStr = "    "; // 4 spaces for SQL formatting
-                    
+
                     if (selection.start >= 0) {
-                      final newText = text.replaceRange(selection.start, selection.end, tabStr);
+                      final newText = text.replaceRange(
+                        selection.start,
+                        selection.end,
+                        tabStr,
+                      );
                       _queryController.value = TextEditingValue(
                         text: newText,
-                        selection: TextSelection.collapsed(offset: selection.start + tabStr.length),
+                        selection: TextSelection.collapsed(
+                          offset: selection.start + tabStr.length,
+                        ),
                       );
                     }
-                    return KeyEventResult.handled; // Handled, stops focus traversal
+                    return KeyEventResult
+                        .handled; // Handled, stops focus traversal
                   }
                   return KeyEventResult.ignored;
                 },
@@ -554,14 +681,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.save_outlined, size: 16),
                       label: const Text('Save', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                      onPressed: () =>
+                          _scaffoldKey.currentState?.openEndDrawer(),
                       icon: const Icon(Icons.account_tree_outlined, size: 20),
                       tooltip: 'Open Datasets & Tables Tray',
                       padding: const EdgeInsets.all(8),
@@ -574,7 +705,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     FilterChip(
-                      label: const Text('Limit 100', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Limit 100',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       selected: isLimit100,
                       onSelected: (selected) {
                         _toggleLimit100(selected);
@@ -608,56 +742,64 @@ class _HomeScreenState extends State<HomeScreen> {
         height: 36,
         color: const Color(0xFF536DFE),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              title.toUpperCase(),
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                title.toUpperCase(),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
-          ),
-          Row(
-            children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
-                tooltip: 'Maximise Editor',
-                onPressed: () {
-                  setState(() {
-                    _layoutState = _layoutState == EditorLayoutState.maximised
-                        ? EditorLayoutState.split
-                        : EditorLayoutState.maximised;
-                  });
-                },
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
-                tooltip: 'Minimise Editor',
-                onPressed: () {
-                  setState(() {
-                    _layoutState = _layoutState == EditorLayoutState.minimised
-                        ? EditorLayoutState.split
-                        : EditorLayoutState.minimised;
-                  });
-                },
-              ),
-            ],
-          ),
-        ],
+            Row(
+              children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(
+                    Icons.arrow_upward,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  tooltip: 'Maximise Editor',
+                  onPressed: () {
+                    setState(() {
+                      _layoutState = _layoutState == EditorLayoutState.maximised
+                          ? EditorLayoutState.split
+                          : EditorLayoutState.maximised;
+                    });
+                  },
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(
+                    Icons.arrow_downward,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  tooltip: 'Minimise Editor',
+                  onPressed: () {
+                    setState(() {
+                      _layoutState = _layoutState == EditorLayoutState.minimised
+                          ? EditorLayoutState.split
+                          : EditorLayoutState.minimised;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildRunDropUpButton(bool isExecuting) {
@@ -676,10 +818,16 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             ),
             SizedBox(width: 6),
-            Text('Running...', style: TextStyle(color: Colors.white, fontSize: 13)),
+            Text(
+              'Running...',
+              style: TextStyle(color: Colors.white, fontSize: 13),
+            ),
           ],
         ),
       );
@@ -728,7 +876,14 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(Icons.play_arrow, size: 18, color: Colors.white),
             SizedBox(width: 4),
-            Text('Run', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(
+              'Run',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
             SizedBox(width: 2),
             Icon(Icons.arrow_drop_up, size: 18, color: Colors.white),
           ],
@@ -749,14 +904,25 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 40,
+              ),
               const SizedBox(height: 12),
-              const Text("Query Execution Failed", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text(
+                "Query Execution Failed",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               const SizedBox(height: 8),
               Text(
                 bq.queryError!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.redAccent, fontFamily: 'monospace', fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -839,7 +1005,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final tableWidth = columns.length * 160.0 > 360.0 ? columns.length * 160.0 : 360.0;
+    final tableWidth = columns.length * 160.0 > 360.0
+        ? columns.length * 160.0
+        : 360.0;
 
     return GestureDetector(
       onDoubleTap: _scrollToTop,
@@ -858,18 +1026,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     color: isDark ? const Color(0xFF1E2024) : Colors.grey[200],
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 16,
+                    ),
                     child: Row(
-                      children: columns.map((col) => Expanded(
-                        child: Text(
-                          col,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )).toList(),
+                      children: columns
+                          .map(
+                            (col) => Expanded(
+                              child: Text(
+                                col,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
                 ),
@@ -887,23 +1062,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 44.0,
                         color: isEven
                             ? (isDark ? Colors.transparent : Colors.white)
-                            : (isDark ? Colors.white.withOpacity(0.04) : Colors.grey[100]),
+                            : (isDark
+                                  ? Colors.white.withOpacity(0.04)
+                                  : Colors.grey[100]),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
-                          children: columns.map((col) => Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                row[col] ?? '',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: isDark ? Colors.white70 : Colors.black87,
+                          children: columns
+                              .map(
+                                (col) => Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      row[col] ?? '',
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          )).toList(),
+                              )
+                              .toList(),
                         ),
                       );
                     },

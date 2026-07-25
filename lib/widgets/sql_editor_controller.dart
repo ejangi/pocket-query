@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
@@ -8,35 +7,130 @@ class SqlEditorController extends TextEditingController {
   List<String> _keywords = [];
   List<String> _functions = [];
   List<String> _types = [];
-  
+
   RegExp? _masterRegex;
   bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
 
   // Fallback defaults in case asset loading is delayed
   static const List<String> fallbackKeywords = [
-    "SELECT", "FROM", "WHERE", "GROUP BY", "HAVING", "ORDER BY", "LIMIT",
-    "ASC", "DESC",
-    "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "IS", "NULL", "TRUE", "FALSE",
-    "AS", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "ON", "USING",
-    "UNION", "ALL", "DISTINCT", "INTERSECT", "EXCEPT", "WITH", "CREATE", "REPLACE",
-    "TABLE", "VIEW", "FUNCTION", "INSERT", "UPDATE", "DELETE", "MERGE", "CASE",
-    "WHEN", "THEN", "ELSE", "END", "CAST", "SAFE_CAST", "OVER", "PARTITION BY",
-    "ROWS", "UNBOUNDED", "PRECEDING", "FOLLOWING", "CURRENT", "ROW", "UNNEST",
-    "QUALIFY", "SYSTEM_TIME", "FOR", "VALUES", "SET", "DEFAULT"
+    "SELECT",
+    "FROM",
+    "WHERE",
+    "GROUP BY",
+    "HAVING",
+    "ORDER BY",
+    "LIMIT",
+    "ASC",
+    "DESC",
+    "AND",
+    "OR",
+    "NOT",
+    "IN",
+    "LIKE",
+    "BETWEEN",
+    "IS",
+    "NULL",
+    "TRUE",
+    "FALSE",
+    "AS",
+    "JOIN",
+    "INNER",
+    "LEFT",
+    "RIGHT",
+    "FULL",
+    "CROSS",
+    "ON",
+    "USING",
+    "UNION",
+    "ALL",
+    "DISTINCT",
+    "INTERSECT",
+    "EXCEPT",
+    "WITH",
+    "CREATE",
+    "REPLACE",
+    "TABLE",
+    "VIEW",
+    "FUNCTION",
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "MERGE",
+    "CASE",
+    "WHEN",
+    "THEN",
+    "ELSE",
+    "END",
+    "CAST",
+    "SAFE_CAST",
+    "OVER",
+    "PARTITION BY",
+    "ROWS",
+    "UNBOUNDED",
+    "PRECEDING",
+    "FOLLOWING",
+    "CURRENT",
+    "ROW",
+    "UNNEST",
+    "QUALIFY",
+    "SYSTEM_TIME",
+    "FOR",
+    "VALUES",
+    "SET",
+    "DEFAULT",
   ];
 
   static const List<String> fallbackTypes = [
-    "INT64", "NUMERIC", "BIGNUMERIC", "FLOAT64", "BOOLEAN", "STRING", "BYTES",
-    "DATE", "DATETIME", "TIME", "TIMESTAMP", "GEOGRAPHY", "JSON", "STRUCT",
-    "ARRAY", "INTERVAL"
+    "INT64",
+    "NUMERIC",
+    "BIGNUMERIC",
+    "FLOAT64",
+    "BOOLEAN",
+    "STRING",
+    "BYTES",
+    "DATE",
+    "DATETIME",
+    "TIME",
+    "TIMESTAMP",
+    "GEOGRAPHY",
+    "JSON",
+    "STRUCT",
+    "ARRAY",
+    "INTERVAL",
   ];
 
   static const List<String> fallbackFunctions = [
-    "CONCAT", "SUBSTR", "LENGTH", "LOWER", "UPPER", "TRIM", "REPLACE",
-    "REGEXP_CONTAINS", "REGEXP_EXTRACT", "REGEXP_REPLACE", "SPLIT", "FORMAT",
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "COUNTIF", "ROW_NUMBER", "RANK",
-    "DENSE_RANK", "LAG", "LEAD", "DATE_ADD", "DATE_SUB", "DATE_DIFF",
-    "DATETIME_ADD", "DATETIME_SUB", "DATETIME_DIFF", "GENERATE_ARRAY"
+    "CONCAT",
+    "SUBSTR",
+    "LENGTH",
+    "LOWER",
+    "UPPER",
+    "TRIM",
+    "REPLACE",
+    "REGEXP_CONTAINS",
+    "REGEXP_EXTRACT",
+    "REGEXP_REPLACE",
+    "SPLIT",
+    "FORMAT",
+    "COUNT",
+    "SUM",
+    "AVG",
+    "MIN",
+    "MAX",
+    "COUNTIF",
+    "ROW_NUMBER",
+    "RANK",
+    "DENSE_RANK",
+    "LAG",
+    "LEAD",
+    "DATE_ADD",
+    "DATE_SUB",
+    "DATE_DIFF",
+    "DATETIME_ADD",
+    "DATETIME_SUB",
+    "DATETIME_DIFF",
+    "GENERATE_ARRAY",
   ];
 
   SqlEditorController() {
@@ -54,16 +148,18 @@ class SqlEditorController extends TextEditingController {
   /// Asynchronously load the scraped BigQuery syntax rules from application assets
   Future<void> _loadSpecAsset() async {
     try {
-      final jsonContent = await rootBundle.loadString('assets/metadata/bigquery_syntax.json');
+      final jsonContent = await rootBundle.loadString(
+        'assets/metadata/bigquery_syntax.json',
+      );
       final data = json.decode(jsonContent);
-      
+
       _keywords = List<String>.from(data['keywords'] ?? fallbackKeywords);
       _types = List<String>.from(data['types'] ?? fallbackTypes);
       _functions = List<String>.from(data['functions'] ?? fallbackFunctions);
-      
+
       _buildRegex();
       _isInitialized = true;
-      
+
       // Force trigger rebuild to reflect updated syntax highlighting
       notifyListeners();
     } catch (e) {
@@ -73,9 +169,12 @@ class SqlEditorController extends TextEditingController {
 
   void _buildRegex() {
     // Sort descending by length to prevent shorter keyword matches from preempting longer compound keywords (e.g. ORDER vs ORDER BY)
-    final sortedKeywords = List<String>.from(_keywords)..sort((a, b) => b.length.compareTo(a.length));
-    final sortedFunctions = List<String>.from(_functions)..sort((a, b) => b.length.compareTo(a.length));
-    final sortedTypes = List<String>.from(_types)..sort((a, b) => b.length.compareTo(a.length));
+    final sortedKeywords = List<String>.from(_keywords)
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final sortedFunctions = List<String>.from(_functions)
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final sortedTypes = List<String>.from(_types)
+      ..sort((a, b) => b.length.compareTo(a.length));
 
     final keywordsPattern = sortedKeywords.map(RegExp.escape).join('|');
     final functionsPattern = sortedFunctions.map(RegExp.escape).join('|');
@@ -86,9 +185,15 @@ class SqlEditorController extends TextEditingController {
       r'(?:\/\*[\s\S]*?\*\/|--.*|#.*)' // Group 1: Comments
       r'|(?:\x27[^\x27\\]*(?:\\.[^\x27\\]*)*\x27|\x22[^\x22\\]*(?:\\.[^\x22\\]*)*\x22|‘[^’\\]*(?:\\.[^’\\]*)*’|“[^”\\]*(?:\\.[^”\\]*)*”)' // Group 2: Strings
       r'|(`[^`\\]*(?:\\.[`\\]*)*`)' // Group 3: Backticks
-      r'|\b(?:' + keywordsPattern + r')\b' // Group 4: Keywords
-      r'|\b(?:' + functionsPattern + r')\b' // Group 5: Functions
-      r'|\b(?:' + typesPattern + r')\b' // Group 6: Types
+      r'|\b(?:'
+      '$keywordsPattern'
+      r')\b' // Group 4: Keywords
+      r'|\b(?:'
+      '$functionsPattern'
+      r')\b' // Group 5: Functions
+      r'|\b(?:'
+      '$typesPattern'
+      r')\b' // Group 6: Types
       r'|\b\d+(?:\.\d+)?\b' // Group 7: Numbers
       r'|\b[a-zA-Z_][a-zA-Z0-9_]*\b' // Group 8: Identifiers
       r')',
@@ -100,19 +205,39 @@ class SqlEditorController extends TextEditingController {
   // Exact Figma syntax color theme for dark charcoal editor pane (#2F3237)
   Map<String, TextStyle> _getThemeStyles(bool isDark) {
     return {
-      'comment': const TextStyle(color: Color(0xFF7F8286), fontStyle: FontStyle.italic),
-      'string': const TextStyle(color: Color(0xFFF65471)), // Figma Coral Pink #F65471
-      'backtick': const TextStyle(color: Color(0xFF5FCDDD), fontWeight: FontWeight.w600), // Figma Cyan #5FCDDD
-      'keyword': const TextStyle(color: Color(0xFFF0FB6F), fontWeight: FontWeight.bold), // Figma Neon Yellow #F0FB6F
-      'function': const TextStyle(color: Color(0xFF44D9D0), fontWeight: FontWeight.w600), // Figma Teal #44D9D0
+      'comment': const TextStyle(
+        color: Color(0xFF7F8286),
+        fontStyle: FontStyle.italic,
+      ),
+      'string': const TextStyle(
+        color: Color(0xFFF65471),
+      ), // Figma Coral Pink #F65471
+      'backtick': const TextStyle(
+        color: Color(0xFF5FCDDD),
+        fontWeight: FontWeight.w600,
+      ), // Figma Cyan #5FCDDD
+      'keyword': const TextStyle(
+        color: Color(0xFFF0FB6F),
+        fontWeight: FontWeight.bold,
+      ), // Figma Neon Yellow #F0FB6F
+      'function': const TextStyle(
+        color: Color(0xFF44D9D0),
+        fontWeight: FontWeight.w600,
+      ), // Figma Teal #44D9D0
       'type': const TextStyle(color: Color(0xFF999999)), // Figma Muted #999999
       'number': const TextStyle(color: Color(0xFF44D9D0)), // Figma Teal #44D9D0
-      'identifier': const TextStyle(color: Color(0xFF5FCDDD)), // Figma Cyan #5FCDDD
+      'identifier': const TextStyle(
+        color: Color(0xFF5FCDDD),
+      ), // Figma Cyan #5FCDDD
     };
   }
 
   /// Exposed getter for autocompletion dictionary lookup
-  List<String> get autocompleteDictionary => [..._keywords, ..._functions, ..._types];
+  List<String> get autocompleteDictionary => [
+    ..._keywords,
+    ..._functions,
+    ..._types,
+  ];
 
   @override
   TextSpan buildTextSpan({
@@ -134,19 +259,26 @@ class SqlEditorController extends TextEditingController {
     _masterRegex!.allMatches(text).forEach((match) {
       // Add plain text before match
       if (match.start > lastMatchIndex) {
-        spans.add(TextSpan(
-          text: text.substring(lastMatchIndex, match.start),
-          style: defaultStyle,
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastMatchIndex, match.start),
+            style: defaultStyle,
+          ),
+        );
       }
 
       final matchedText = match.group(0)!;
       TextStyle matchStyle = defaultStyle;
 
       // Classify the match based on contents or characters
-      if (matchedText.startsWith('--') || matchedText.startsWith('#') || matchedText.startsWith('/*')) {
+      if (matchedText.startsWith('--') ||
+          matchedText.startsWith('#') ||
+          matchedText.startsWith('/*')) {
         matchStyle = defaultStyle.merge(styles['comment']);
-      } else if (matchedText.startsWith('\'') || matchedText.startsWith('"') || matchedText.startsWith('‘') || matchedText.startsWith('“')) {
+      } else if (matchedText.startsWith('\'') ||
+          matchedText.startsWith('"') ||
+          matchedText.startsWith('‘') ||
+          matchedText.startsWith('“')) {
         matchStyle = defaultStyle.merge(styles['string']);
       } else if (matchedText.startsWith('`')) {
         matchStyle = defaultStyle.merge(styles['backtick']);
@@ -165,20 +297,16 @@ class SqlEditorController extends TextEditingController {
         }
       }
 
-      spans.add(TextSpan(
-        text: matchedText,
-        style: matchStyle,
-      ));
+      spans.add(TextSpan(text: matchedText, style: matchStyle));
 
       lastMatchIndex = match.end;
     });
 
     // Add trailing plain text
     if (lastMatchIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastMatchIndex),
-        style: defaultStyle,
-      ));
+      spans.add(
+        TextSpan(text: text.substring(lastMatchIndex), style: defaultStyle),
+      );
     }
 
     return TextSpan(children: spans, style: defaultStyle);
@@ -188,7 +316,10 @@ class SqlEditorController extends TextEditingController {
   /// Handles backticks, project prefixes, comments, spacing, and multiple lines.
   static Map<String, String>? parseTableReference(String query) {
     // 1. Strip comments (both line -- / # and multi-line /* ... */)
-    final cleanQuery = query.replaceAll(RegExp(r'\/\*[\s\S]*?\*\/|--.*|#.*'), ' ');
+    final cleanQuery = query.replaceAll(
+      RegExp(r'\/\*[\s\S]*?\*\/|--.*|#.*'),
+      ' ',
+    );
 
     // 2. Match FROM or JOIN clauses followed by optional spaces and backticks or letters
     final pathRegex = RegExp(
@@ -199,12 +330,12 @@ class SqlEditorController extends TextEditingController {
     for (final match in pathRegex.allMatches(cleanQuery)) {
       final path = match.group(1) ?? match.group(2);
       if (path == null) continue;
-      
+
       final parts = path.split('.');
       if (parts.length >= 2) {
         final tableId = parts.last.trim();
         final datasetId = parts[parts.length - 2].trim();
-        
+
         return {
           'datasetId': datasetId.replaceAll('`', ''),
           'tableId': tableId.replaceAll('`', ''),

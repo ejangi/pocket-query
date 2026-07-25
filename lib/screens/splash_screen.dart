@@ -29,17 +29,11 @@ class SplashScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 // App Title SVG
-                SvgPicture.asset(
-                  'assets/images/title.svg',
-                  width: 244,
-                ),
+                SvgPicture.asset('assets/images/title.svg', width: 244),
                 const SizedBox(height: 8),
                 Text(
                   'BigQuery on the Go',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
                 const Spacer(flex: 2),
                 // Adaptive Get Started / Google Login Button
@@ -50,7 +44,10 @@ class SplashScreen extends StatelessWidget {
                             : () async {
                                 await authService.signIn();
                               },
-                        icon: const Icon(Icons.rocket_launch_outlined, size: 20),
+                        icon: const Icon(
+                          Icons.rocket_launch_outlined,
+                          size: 20,
+                        ),
                         label: const Text(
                           'Get Started',
                           style: TextStyle(
@@ -63,7 +60,10 @@ class SplashScreen extends StatelessWidget {
                           foregroundColor: Colors.white,
                           elevation: 2,
                           shadowColor: Colors.black26,
-                          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16.0,
+                            horizontal: 32.0,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -77,7 +77,9 @@ class SplashScreen extends StatelessWidget {
                                 if (!success && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Google Sign-in failed. Please try again.'),
+                                      content: Text(
+                                        'Google Sign-in failed. Please try again.',
+                                      ),
                                     ),
                                   );
                                 }
@@ -87,7 +89,10 @@ class SplashScreen extends StatelessWidget {
                           foregroundColor: Colors.black87,
                           elevation: 2,
                           shadowColor: Colors.black26,
-                          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16.0,
+                            horizontal: 24.0,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(color: Colors.grey[300]!),
@@ -101,7 +106,8 @@ class SplashScreen extends StatelessWidget {
                               'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
                               height: 24,
                               width: 24,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.login, size: 24),
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.login, size: 24),
                             ),
                             const SizedBox(width: 12),
                             const Text(
@@ -122,6 +128,4 @@ class SplashScreen extends StatelessWidget {
       ),
     );
   }
-
-
 }

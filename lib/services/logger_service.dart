@@ -43,7 +43,11 @@ class LoggerService {
         final dir = await getApplicationDocumentsDirectory();
         _logFile = File('${dir.path}/pocket_query_debug.log');
       }
-      await _logFile?.writeAsString(logLine, mode: FileMode.append, flush: true);
+      await _logFile?.writeAsString(
+        logLine,
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (e) {
       debugPrint('Failed to write to pocket_query_debug.log: $e');
     }
@@ -68,7 +72,11 @@ class LoggerService {
   static Future<void> clearLogs() async {
     try {
       if (_logFile != null && await _logFile!.exists()) {
-        await _logFile!.writeAsString('=== LOGS CLEARED ===\n', mode: FileMode.write, flush: true);
+        await _logFile!.writeAsString(
+          '=== LOGS CLEARED ===\n',
+          mode: FileMode.write,
+          flush: true,
+        );
       }
     } catch (e) {
       debugPrint('Failed to clear logs: $e');

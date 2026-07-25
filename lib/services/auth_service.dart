@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:pocket_query/services/logger_service.dart';
@@ -43,32 +41,35 @@ class AuthService extends ChangeNotifier {
   AuthService() {
     // If running on Linux desktop, skip GoogleSignIn initialization to avoid UnimplementedError
     if (!kIsWeb && Platform.isLinux) {
-      debugPrint("Running on Linux desktop target - Google Sign-in will run in Mock Mode.");
+      debugPrint(
+        "Running on Linux desktop target - Google Sign-in will run in Mock Mode.",
+      );
       return;
     }
 
     // Initialize the plugin first
-    final String webClientId = '226169391261-4qqt2be6t0iu2b9q6kblvdf79nkniaq5.apps.googleusercontent.com';
-    
+    final String webClientId =
+        '226169391261-4qqt2be6t0iu2b9q6kblvdf79nkniaq5.apps.googleusercontent.com';
+
     final Future<void> initFuture;
     if (kIsWeb) {
-      initFuture = _googleSignIn.initialize(
-        clientId: webClientId,
-      );
+      initFuture = _googleSignIn.initialize(clientId: webClientId);
     } else {
-      initFuture = _googleSignIn.initialize(
-        serverClientId: webClientId,
-      );
+      initFuture = _googleSignIn.initialize(serverClientId: webClientId);
     }
 
-    initFuture.then((_) {
-      // Listen to authentication events
-      _authSubscription = _googleSignIn.authenticationEvents.listen(_handleAuthenticationEvent);
-      // Attempt to silently sign in
-      attemptLightweightAuthentication();
-    }).catchError((e) {
-      debugPrint("Failed to initialize GoogleSignIn: $e");
-    });
+    initFuture
+        .then((_) {
+          // Listen to authentication events
+          _authSubscription = _googleSignIn.authenticationEvents.listen(
+            _handleAuthenticationEvent,
+          );
+          // Attempt to silently sign in
+          attemptLightweightAuthentication();
+        })
+        .catchError((e) {
+          debugPrint("Failed to initialize GoogleSignIn: $e");
+        });
   }
 
   void _handleAuthenticationEvent(GoogleSignInAuthenticationEvent event) {
@@ -115,27 +116,41 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
-      await LoggerService.log("Initiating Google Sign-In via _googleSignIn.authenticate()");
+      await LoggerService.log(
+        "Initiating Google Sign-In via _googleSignIn.authenticate()",
+      );
       final account = await _googleSignIn.authenticate();
-      if (account != null) {
-        _currentUser = account;
-        await LoggerService.log("Google Sign-In SUCCESS for user: ${account.email} (${account.displayName})");
-        try {
-          await account.authorizationClient.authorizeScopes(_scopes);
-          await LoggerService.log("BigQuery OAuth Scopes authorized successfully.");
-        } catch (scopeError, stack) {
-          await LoggerService.log("Failed to authorize scopes", level: "WARNING", error: scopeError, stackTrace: stack);
-          _lastAuthError = "Scope Authorization Warning: $scopeError";
-        }
-      } else {
-        await LoggerService.log("Google Sign-In returned null account (user cancelled or prompt failed)", level: "WARNING");
+      _currentUser = account;
+      await LoggerService.log(
+        "Google Sign-In SUCCESS for user: ${account.email} (${account.displayName})",
+      );
+      try {
+        await account.authorizationClient.authorizeScopes(_scopes);
+        await LoggerService.log(
+          "BigQuery OAuth Scopes authorized successfully.",
+        );
+      } catch (scopeError, stack) {
+        await LoggerService.log(
+          "Failed to authorize scopes",
+          level: "WARNING",
+          error: scopeError,
+          stackTrace: stack,
+        );
+        _lastAuthError = "Scope Authorization Warning: $scopeError";
       }
-      return account != null;
+      return true;
     } catch (e, stack) {
       _lastAuthError = e.toString();
-      await LoggerService.log("Google Sign-In EXCEPTION occurred", level: "ERROR", error: e, stackTrace: stack);
+      await LoggerService.log(
+        "Google Sign-In EXCEPTION occurred",
+        level: "ERROR",
+        error: e,
+        stackTrace: stack,
+      );
       if (kDebugMode) {
-        await LoggerService.log("Debug mode active: falling back to MockGoogleSignInAccount() for emulator testing.");
+        await LoggerService.log(
+          "Debug mode active: falling back to MockGoogleSignInAccount() for emulator testing.",
+        );
         _currentUser = MockGoogleSignInAccount();
         return true;
       }
@@ -159,7 +174,12 @@ class AuthService extends ChangeNotifier {
     } catch (e, stack) {
       _currentUser = null;
       _lastAuthError = null;
-      await LoggerService.log("Sign-out completed with warning", level: "WARNING", error: e, stackTrace: stack);
+      await LoggerService.log(
+        "Sign-out completed with warning",
+        level: "WARNING",
+        error: e,
+        stackTrace: stack,
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -170,8 +190,11 @@ class AuthService extends ChangeNotifier {
   Future<http.Client?> getAuthenticatedClient() async {
     if (_currentUser == null) return null;
     try {
-      final authorization = await _currentUser!.authorizationClient.authorizationForScopes(_scopes)
-          ?? await _currentUser!.authorizationClient.authorizeScopes(_scopes);
+      final authorization =
+          await _currentUser!.authorizationClient.authorizationForScopes(
+            _scopes,
+          ) ??
+          await _currentUser!.authorizationClient.authorizeScopes(_scopes);
       return AuthenticatedClient({
         'Authorization': 'Bearer ${authorization.accessToken}',
       });
@@ -189,29 +212,40 @@ class AuthService extends ChangeNotifier {
 }
 
 // Mock definitions to support Linux desktop testing natively
-class MockGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
+class MockGoogleSignInClientAuthorization
+    implements GoogleSignInClientAuthorization {
   @override
   String get accessToken => 'mock_access_token';
 }
 
-class MockGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
+class MockGoogleSignInAuthorizationClient
+    implements GoogleSignInAuthorizationClient {
   @override
-  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
+  Future<GoogleSignInClientAuthorization> authorizeScopes(
+    List<String> scopes,
+  ) async {
     return MockGoogleSignInClientAuthorization();
   }
 
   @override
-  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
+  Future<GoogleSignInClientAuthorization?> authorizationForScopes(
+    List<String> scopes,
+  ) async {
     return MockGoogleSignInClientAuthorization();
   }
 
   @override
-  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
+  Future<Map<String, String>?> authorizationHeaders(
+    List<String> scopes, {
+    bool promptIfNecessary = false,
+  }) async {
     return {'Authorization': 'Bearer mock_access_token'};
   }
 
   @override
-  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async {
+  Future<GoogleSignInServerAuthorization?> authorizeServer(
+    List<String> scopes,
+  ) async {
     return null;
   }
 
@@ -220,7 +254,6 @@ class MockGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationCl
 }
 
 class MockGoogleSignInAuthentication implements GoogleSignInAuthentication {
-  @override
   String? get accessToken => 'mock_access_token';
 
   @override
@@ -240,18 +273,16 @@ class MockGoogleSignInAccount implements GoogleSignInAccount {
   @override
   String? get photoUrl => null;
 
-  @override
   String? get serverAuthCode => null;
 
-  @override
-  GoogleSignInAuthentication get authentication => MockGoogleSignInAuthentication();
+  GoogleSignInAuthentication get authentication =>
+      MockGoogleSignInAuthentication();
 
-  @override
   Future<Map<String, String>> get authHeaders async => {};
 
-  @override
   Future<void> clearAuthCache() async {}
 
   @override
-  GoogleSignInAuthorizationClient get authorizationClient => MockGoogleSignInAuthorizationClient();
+  GoogleSignInAuthorizationClient get authorizationClient =>
+      MockGoogleSignInAuthorizationClient();
 }

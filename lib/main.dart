@@ -37,7 +37,7 @@ class PocketQueryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primaryAccent = Color(0xFF536DFF);
-    
+
     return MaterialApp(
       title: 'Pocket Query',
       debugShowCheckedModeBanner: false,
@@ -75,11 +75,7 @@ class AuthGate extends StatelessWidget {
     final authService = context.watch<AuthService>();
 
     if (authService.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (authService.isAuthenticated) {

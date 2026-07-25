@@ -1,0 +1,137 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Verify Code Formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze Code
+        run: flutter analyze
+
+      - name: Run Tests
+        run: flutter test
+
+  build-android:
+    name: Build Android APK
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Prepare APK Artifact Name
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME:-release}"
+          APK_NAME="pocket-query-${TAG_NAME}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "./${APK_NAME}"
+          echo "APK_NAME=${APK_NAME}" >> $GITHUB_ENV
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ env.APK_NAME }}
+          retention-days: 7
+
+  # Future iOS Pipeline Placeholder
+  # To enable iOS builds once iOS development commences:
+  # 1. Change runner to `macos-latest`
+  # 2. Add Apple Developer Certificate and Provisioning Profile secrets
+  # 3. Uncomment this job and add `build-ios` to `release` job's `needs` array
+  #
+  # build-ios:
+  #   name: Build iOS App
+  #   needs: test
+  #   if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v4
+  #     - name: Set up Flutter
+  #       uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'stable'
+  #         cache: true
+  #     - name: Install Dependencies
+  #       run: flutter pub get
+  #     - name: Build iOS IPA
+  #       run: flutter build ipa --release --no-codesign
+
+  release:
+    name: Create GitHub Release
+    needs: build-android
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Android APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: pocket-query-*.apk
+          generate_release_notes: true
+          body: |
+            ## 📱 Android Installation Instructions
+
+            1. Download the `pocket-query-*.apk` file attached to this release on your Android device.
+            2. If prompted by Android, enable **Install from Unknown Sources** for your browser or file manager.
+            3. Open the downloaded `.apk` file to install **Pocket Query**.
+            4. Launch the app and authenticate with your Google Cloud account.

@@ -38,7 +38,8 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
 
   void _tryAutoNavigate() {
     final query = widget.activeQuery;
-    if (query == null || query.trim().isEmpty || query == _lastParsedQuery) return;
+    if (query == null || query.trim().isEmpty || query == _lastParsedQuery)
+      return;
     _lastParsedQuery = query;
 
     final parsed = SqlEditorController.parseTableReference(query);
@@ -47,7 +48,9 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
     final targetDataset = parsed['datasetId'];
     final targetTable = parsed['tableId'];
 
-    if (targetDataset == null || targetDataset == 'default_dataset' || targetTable == null) {
+    if (targetDataset == null ||
+        targetDataset == 'default_dataset' ||
+        targetTable == null) {
       return;
     }
 
@@ -116,7 +119,10 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
                   Expanded(
                     child: Text(
                       title,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -125,7 +131,10 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
             const Divider(),
             // Path Indicator
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 4.0,
+              ),
               child: Text(
                 path,
                 style: TextStyle(
@@ -137,7 +146,7 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
               ),
             ),
             const Divider(),
-            
+
             // Loading State & Body list
             Expanded(
               child: bigQueryService.isLoadingSchema
@@ -199,7 +208,10 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
       itemBuilder: (context, index) {
         final tableName = tables[index];
         return ListTile(
-          leading: const Icon(Icons.table_chart_outlined, color: Color(0xFF536DFE)),
+          leading: const Icon(
+            Icons.table_chart_outlined,
+            color: Color(0xFF536DFE),
+          ),
           title: Text(tableName),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
@@ -213,7 +225,11 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
     );
   }
 
-  Widget _buildFieldsList(BigQueryService bq, String datasetName, String tableName) {
+  Widget _buildFieldsList(
+    BigQueryService bq,
+    String datasetName,
+    String tableName,
+  ) {
     final cacheKey = "$datasetName.$tableName";
     final fieldsList = bq.tableFields[cacheKey] ?? [];
 

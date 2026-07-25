@@ -68,12 +68,18 @@ class SqlAutocompleteEditor extends StatelessWidget {
         final wordRange = _getWordAtOffset(text, offset);
 
         // Replace only the matched word under the cursor
-        final newText = text.replaceRange(wordRange.start, wordRange.end, selection);
+        final newText = text.replaceRange(
+          wordRange.start,
+          wordRange.end,
+          selection,
+        );
         controller.value = TextEditingValue(
           text: newText,
-          selection: TextSelection.collapsed(offset: wordRange.start + selection.length),
+          selection: TextSelection.collapsed(
+            offset: wordRange.start + selection.length,
+          ),
         );
-        
+
         if (onChanged != null) {
           onChanged!(newText);
         }
@@ -84,97 +90,124 @@ class SqlAutocompleteEditor extends StatelessWidget {
         if (offset < 0) return const Iterable<String>.empty();
 
         final wordRange = _getWordAtOffset(text, offset);
-        final currentWord = text.substring(wordRange.start, wordRange.end).trim();
+        final currentWord = text
+            .substring(wordRange.start, wordRange.end)
+            .trim();
 
         if (currentWord.length < minCharacters) {
           return const Iterable<String>.empty();
         }
 
         final query = currentWord.toLowerCase();
-        return controller.autocompleteDictionary.where((option) {
-          final optionLower = option.toLowerCase();
-          return optionLower.startsWith(query) && optionLower != query;
-        }).take(10); // Limit to top 10 suggestions for performance
+        return controller.autocompleteDictionary
+            .where((option) {
+              final optionLower = option.toLowerCase();
+              return optionLower.startsWith(query) && optionLower != query;
+            })
+            .take(10); // Limit to top 10 suggestions for performance
       },
-      optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<String> onSelected, Iterable<String> options) {
-        final double width = MediaQuery.of(context).size.width - 48; // Account for screen padding
-        
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Container(
-            margin: const EdgeInsets.only(top: 8.0),
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
-              shadowColor: Colors.black38,
-              clipBehavior: Clip.antiAlias,
-              child: SizedBox(
-                width: width,
-                height: options.length * 48.0 > 240.0 ? 240.0 : options.length * 48.0,
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: options.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    final String option = options.elementAt(index);
-                    
-                    // Style match suggestions
-                    return InkWell(
-                      onTap: () => onSelected(option),
-                      child: Container(
-                        height: 48.0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        alignment: Alignment.centerLeft,
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isDark ? Colors.white12 : Colors.black12,
-                              width: index == options.length - 1 ? 0 : 0.5,
+      optionsViewBuilder:
+          (
+            BuildContext context,
+            AutocompleteOnSelected<String> onSelected,
+            Iterable<String> options,
+          ) {
+            final double width =
+                MediaQuery.of(context).size.width -
+                48; // Account for screen padding
+
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Container(
+                margin: const EdgeInsets.only(top: 8.0),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+                  shadowColor: Colors.black38,
+                  clipBehavior: Clip.antiAlias,
+                  child: SizedBox(
+                    width: width,
+                    height: options.length * 48.0 > 240.0
+                        ? 240.0
+                        : options.length * 48.0,
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+
+                        // Style match suggestions
+                        return InkWell(
+                          onTap: () => onSelected(option),
+                          child: Container(
+                            height: 48.0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
+                            alignment: Alignment.centerLeft,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isDark
+                                      ? Colors.white12
+                                      : Colors.black12,
+                                  width: index == options.length - 1 ? 0 : 0.5,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  option,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                // Small type badge (e.g. Keyword, Function)
+                                Text(
+                                  _getBadgeText(option),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? Colors.blue[300]
+                                        : Colors.blue[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              option,
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                color: isDark ? Colors.white : Colors.black87,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            // Small type badge (e.g. Keyword, Function)
-                            Text(
-                              _getBadgeText(option),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.blue[300] : Colors.blue[800],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-      },
-      fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-        return TextField(
-          controller: textEditingController,
-          focusNode: fieldFocusNode,
-          decoration: decoration,
-          style: style,
-          maxLines: maxLines,
-          keyboardType: TextInputType.multiline,
-          onChanged: onChanged,
-        );
-      },
+            );
+          },
+      fieldViewBuilder:
+          (
+            BuildContext context,
+            TextEditingController textEditingController,
+            FocusNode fieldFocusNode,
+            VoidCallback onFieldSubmitted,
+          ) {
+            return TextField(
+              controller: textEditingController,
+              focusNode: fieldFocusNode,
+              decoration: decoration,
+              style: style,
+              maxLines: maxLines,
+              keyboardType: TextInputType.multiline,
+              onChanged: onChanged,
+            );
+          },
     );
   }
 

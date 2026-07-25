@@ -2,7 +2,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -14,29 +13,40 @@ import 'package:pocket_query/main.dart';
 
 // Mock implementations matching GoogleSignIn v7.2.0 API exactly
 
-class MockGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
+class MockGoogleSignInClientAuthorization
+    implements GoogleSignInClientAuthorization {
   @override
   String get accessToken => 'mock_access_token';
 }
 
-class MockGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
+class MockGoogleSignInAuthorizationClient
+    implements GoogleSignInAuthorizationClient {
   @override
-  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
+  Future<GoogleSignInClientAuthorization> authorizeScopes(
+    List<String> scopes,
+  ) async {
     return MockGoogleSignInClientAuthorization();
   }
 
   @override
-  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
+  Future<GoogleSignInClientAuthorization?> authorizationForScopes(
+    List<String> scopes,
+  ) async {
     return MockGoogleSignInClientAuthorization();
   }
 
   @override
-  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
+  Future<Map<String, String>?> authorizationHeaders(
+    List<String> scopes, {
+    bool promptIfNecessary = false,
+  }) async {
     return {'Authorization': 'Bearer mock_access_token'};
   }
 
   @override
-  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async {
+  Future<GoogleSignInServerAuthorization?> authorizeServer(
+    List<String> scopes,
+  ) async {
     return null;
   }
 
@@ -45,7 +55,6 @@ class MockGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationCl
 }
 
 class MockGoogleSignInAuthentication implements GoogleSignInAuthentication {
-  @override
   String? get accessToken => 'mock_access_token';
 
   @override
@@ -65,20 +74,18 @@ class MockGoogleSignInAccount implements GoogleSignInAccount {
   @override
   String? get photoUrl => null;
 
-  @override
   String? get serverAuthCode => null;
 
-  @override
-  GoogleSignInAuthentication get authentication => MockGoogleSignInAuthentication();
+  GoogleSignInAuthentication get authentication =>
+      MockGoogleSignInAuthentication();
 
-  @override
   Future<Map<String, String>> get authHeaders async => {};
 
-  @override
   Future<void> clearAuthCache() async {}
 
   @override
-  GoogleSignInAuthorizationClient get authorizationClient => MockGoogleSignInAuthorizationClient();
+  GoogleSignInAuthorizationClient get authorizationClient =>
+      MockGoogleSignInAuthorizationClient();
 }
 
 // A Mock representation of our AuthService
@@ -110,10 +117,10 @@ class MockAuthService extends ChangeNotifier implements AuthService {
     signInCallCount++;
     _isLoading = true;
     notifyListeners();
-    
+
     // Simulate short network delay
     await Future.delayed(const Duration(milliseconds: 10));
-    
+
     _isLoading = false;
     if (signInResult) {
       _currentUser = MockGoogleSignInAccount();
@@ -135,7 +142,9 @@ class MockAuthService extends ChangeNotifier implements AuthService {
 }
 
 void main() {
-  testWidgets('Authentication Flow Test - Successful Sign In', (WidgetTester tester) async {
+  testWidgets('Authentication Flow Test - Successful Sign In', (
+    WidgetTester tester,
+  ) async {
     final mockAuth = MockAuthService();
     final mockBQ = BigQueryService(mockAuth);
 
@@ -146,61 +155,64 @@ void main() {
           ChangeNotifierProvider<AuthService>.value(value: mockAuth),
           ChangeNotifierProvider<BigQueryService>.value(value: mockBQ),
         ],
-        child: const MaterialApp(
-          home: AuthGate(),
-        ),
+        child: const MaterialApp(home: AuthGate()),
       ),
     );
 
     // 1. Initially should render the Splash Screen
     expect(find.byType(SplashScreen), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing);
-    
+
     // Find and tap the login button
-    final loginButtonText = (!kIsWeb && Platform.isLinux) ? 'Get Started' : 'Sign in with Google';
+    final loginButtonText = (!kIsWeb && Platform.isLinux)
+        ? 'Get Started'
+        : 'Sign in with Google';
     final loginButton = find.text(loginButtonText);
     expect(loginButton, findsOneWidget);
     await tester.tap(loginButton);
-    
+
     // Trigger the initial frame change
     await tester.pump();
-    
+
     // 2. Check loading state (button should show loading behavior or progress indicator)
     // On Linux desktop mock mode it resolves immediately without delay, so we pump to settle
     await tester.pump(const Duration(milliseconds: 20));
-    
+
     // 3. AuthGate should rebuild and navigate to HomeScreen
     expect(find.byType(SplashScreen), findsNothing);
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(mockAuth.signInCallCount, 1);
   });
 
-  testWidgets('Authentication Flow Test - Failed Sign In displays Error Banner', (WidgetTester tester) async {
-    final mockAuth = MockAuthService()..signInResult = false;
-    final mockBQ = BigQueryService(mockAuth);
+  testWidgets(
+    'Authentication Flow Test - Failed Sign In displays Error Banner',
+    (WidgetTester tester) async {
+      final mockAuth = MockAuthService()..signInResult = false;
+      final mockBQ = BigQueryService(mockAuth);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AuthService>.value(value: mockAuth),
-          ChangeNotifierProvider<BigQueryService>.value(value: mockBQ),
-        ],
-        child: const MaterialApp(
-          home: AuthGate(),
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthService>.value(value: mockAuth),
+            ChangeNotifierProvider<BigQueryService>.value(value: mockBQ),
+          ],
+          child: const MaterialApp(home: AuthGate()),
         ),
-      ),
-    );
+      );
 
-    // Find and tap sign-in
-    final loginButtonText = (!kIsWeb && Platform.isLinux) ? 'Get Started' : 'Sign in with Google';
-    await tester.tap(find.text(loginButtonText));
-    await tester.pump();
-    
-    // Wait for network delay
-    await tester.pump(const Duration(milliseconds: 20));
-    
-    // 4. Verify that we remain on the SplashScreen
-    expect(find.byType(SplashScreen), findsOneWidget);
-    expect(find.byType(HomeScreen), findsNothing);
-  });
+      // Find and tap sign-in
+      final loginButtonText = (!kIsWeb && Platform.isLinux)
+          ? 'Get Started'
+          : 'Sign in with Google';
+      await tester.tap(find.text(loginButtonText));
+      await tester.pump();
+
+      // Wait for network delay
+      await tester.pump(const Duration(milliseconds: 20));
+
+      // 4. Verify that we remain on the SplashScreen
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(HomeScreen), findsNothing);
+    },
+  );
 }
