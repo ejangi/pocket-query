@@ -1232,8 +1232,9 @@ class BigQueryService extends ChangeNotifier {
     final cacheKey = "$datasetId.$tableId";
     if (_tableFields.containsKey(cacheKey) ||
         _api == null ||
-        _selectedProjectId == null)
+        _selectedProjectId == null) {
       return;
+    }
 
     try {
       final table = await _api!.tables.get(

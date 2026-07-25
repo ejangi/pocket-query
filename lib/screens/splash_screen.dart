@@ -106,7 +106,7 @@ class SplashScreen extends StatelessWidget {
                               'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
                               height: 24,
                               width: 24,
-                              errorBuilder: (_, __, ___) =>
+                              errorBuilder: (context, error, stackTrace) =>
                                   const Icon(Icons.login, size: 24),
                             ),
                             const SizedBox(width: 12),

@@ -260,7 +260,7 @@ class _SideMenuState extends State<SideMenu> {
                               ? bookmarkName
                               : 'Saved Query',
                         );
-                        if (mounted) {
+                        if (mounted && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text("Query saved to Project Queries!"),
@@ -448,7 +448,7 @@ class _SideMenuState extends State<SideMenu> {
                           isProcessing = true;
                         });
                         await bq.renameProjectQuery(q.name, newName);
-                        if (mounted) {
+                        if (mounted && ctx.mounted && context.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -525,7 +525,7 @@ class _SideMenuState extends State<SideMenu> {
                         isProcessing = true;
                       });
                       await bq.deleteProjectQuery(q.name);
-                      if (mounted) {
+                      if (mounted && ctx.mounted && context.mounted) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

@@ -275,6 +275,7 @@ class MockGoogleSignInAccount implements GoogleSignInAccount {
 
   String? get serverAuthCode => null;
 
+  @override
   GoogleSignInAuthentication get authentication =>
       MockGoogleSignInAuthentication();
 

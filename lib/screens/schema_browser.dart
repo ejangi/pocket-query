@@ -38,8 +38,9 @@ class _SchemaBrowserState extends State<SchemaBrowser> {
 
   void _tryAutoNavigate() {
     final query = widget.activeQuery;
-    if (query == null || query.trim().isEmpty || query == _lastParsedQuery)
+    if (query == null || query.trim().isEmpty || query == _lastParsedQuery) {
       return;
+    }
     _lastParsedQuery = query;
 
     final parsed = SqlEditorController.parseTableReference(query);
